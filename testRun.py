@@ -5,7 +5,7 @@ import os
 
 # define parts of program call
 base_call = './main.py'
-path_call = '-p data/ex1'
+path_call = '-p data/ex2'
 
 # make into a list
 cmd_lst = [

@@ -3,10 +3,10 @@
 # import libraries
 import os
 import dicom
-import numpy
 import argparse
 
-from matplotlib import pyplot, cm
+# import user defined functions
+from src.renderDicom import plotDicom as plotDicom
 
 # main
 def main():
@@ -27,23 +27,10 @@ def main():
 
     # read dicom files
     dicom_obj = [dicom.read_file(x, force=True) for x in dicom_files]
-
     dc = dicom_obj[6]
 
-    # render####
-    fig, (ax) = pyplot.subplots(1)
-
-    # make figure
-    ax = pyplot.imshow(dc.pixel_array, cmap='gray')
-
-    def fun1(event):
-        if event.key != 't':
-            return
-        print(22)
-
-    pyplot.connect('key_press_event', fun1)
-
-    pyplot.show()
+    # render
+    plotDicom(dc)
 
 if __name__ == '__main__':
     main()
