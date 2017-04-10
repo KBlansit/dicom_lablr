@@ -27,10 +27,22 @@ def main():
 
     # read dicom files
     dicom_obj = [dicom.read_file(x, force=True) for x in dicom_files]
-    import pdb; pdb.set_trace()
 
-    # render
-    pyplot.imshow(dc.pixel_array, cmap='gray')
+    dc = dicom_obj[6]
+
+    # render####
+    fig, (ax) = pyplot.subplots(1)
+
+    # make figure
+    ax = pyplot.imshow(dc.pixel_array, cmap='gray')
+
+    def fun1(event):
+        if event.key != 't':
+            return
+        print(22)
+
+    pyplot.connect('key_press_event', fun1)
+
     pyplot.show()
 
 if __name__ == '__main__':
