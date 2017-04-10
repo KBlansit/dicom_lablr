@@ -12,22 +12,17 @@ def main():
     # temp path
     tmp_path = 'data/ex1'
 
-    # store files
+    # store files and append path
     dicom_files = os.listdir(tmp_path)
+    dicom_files = [tmp_path + "/" + x for x in dicom_files]
 
-    # make path
-    dicom_path = tmp_path + "/" + dicom_files[5]
-
-    # read dicom
-    dc = dicom.read_file(dicom_path)
+    # read dicom files
+    dicom_obj = [dicom.read_file(x, force=True) for x in dicom_files]
+    import pdb; pdb.set_trace()
 
     # render
-
     pyplot.imshow(dc.pixel_array, cmap='gray')
     pyplot.show()
-
-
-
 
 if __name__ == '__main__':
     main()
