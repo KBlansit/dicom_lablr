@@ -7,6 +7,7 @@ import numpy as np
 
 from matplotlib import pyplot, cm
 from matplotlib.patches import Circle
+from matplotlib.widgets import Cursor
 
 class MarkerBuilder:
     def __init__(self, img):
@@ -14,16 +15,15 @@ class MarkerBuilder:
         self.img = img
 
         # get x and y limits
-        self.xs = img.get_xlim()[0]
-        self.ys = img.get_ylim()[0]
+        self.x_max = img.get_xlim()[1]
+        self.y_max = img.get_ylim()[0]
+        print("x max: " + str(self.x_max) + " y max: " + str(self.y_max))
 
+        self.click = None
     def connect(self):
         """
         connection hooks
         """
-        # motion
-        self.cid_motion = self.img.figure.canvas.mpl_connect(
-            'motion_notify_event', self._on_motion)
         # click
         self.cid_click = self.img.figure.canvas.mpl_connect(
             'button_press_event', self._on_click)
@@ -35,28 +35,25 @@ class MarkerBuilder:
         """
         disconnect
         """
-        self.img.figure.canvas.mpl_disconnect('motion_notify_event')
-        self.img.figure.canvas.mpl_disconnect('motion_notify_event')
-        self.img.figure.canvas.mpl_disconnect('motion_notify_event')
+        self.img.figure.canvas.mpl_disconnect('button_press_event')
+        self.img.figure.canvas.mpl_disconnect('button_release_event')
 
-    def _on_motion(self, event):
-        """
-        move the circle
-        """
-        sys.stdout.write("x: %d, y: %d\r" % (event.x, event.y))
-        sys.stdout.flush()
+
 
     def _on_click(self, event):
         """
         """
-        print("click on")
+        sys.stdout.write("x: %d, y: %d\r" % (event.x, event.y))
         sys.stdout.flush()
+
 
     def _on_release(self, event):
         """
         """
-        print("click off")
-        sys.stdout.flush()
+        self.circ = Circle((self.x_max-event.x, self.y_max-event.y), 10, edgecolor='red', fill=False)
+        self.circ = Circle((event.xdata, event.ydata), 10, edgecolor='red', fill=False)
+        self.img.add_patch(self.circ)
+        self.img.figure.canvas.draw()
 
 
 # functions to contorl
@@ -80,8 +77,7 @@ def plotDicom(dicom):
     # make figure
     ax.set_aspect('equal')
     ax.imshow(dicom.pixel_array, cmap='gray')
-
-    ax.add_patch(Circle((250, 250), 10, edgecolor='red', fill=False))
+    cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
 
     # connect to function
     mb = MarkerBuilder(ax)
