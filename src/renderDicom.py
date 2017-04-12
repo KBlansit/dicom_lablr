@@ -41,12 +41,28 @@ class MarkerBuilder:
         self.x_max = img.get_xlim()[1]
         self.y_max = img.get_ylim()[0]
 
-        self.circ_collect = CircleCollection()
+        # collection of circles
+        self.circ_collection = CircleCollection()
+        self.circ_collection.valid_location_types
+
+        # the current blood vessle selected
+        self.curr_selection = None
+
+        # TODO: refactor
+        self.locations_markers = {
+            1: "BLOOD_VESSLE_1",
+            2: "BLOOD_VESSLE_2",
+            3: "BLOOD_VESSLE_3",
+            4: "BLOOD_VESSLE_4",
+        }
 
     def connect(self):
         """
         connection hooks
         """
+        # keyboard press
+        self.cid_keyboard_press = self.img.figure.canvas.mpl_connect(
+        'key_press_event', self._on_release)
         # click
         self.cid_click = self.img.figure.canvas.mpl_connect(
             'button_press_event', self._on_click)
@@ -58,8 +74,17 @@ class MarkerBuilder:
         """
         disconnect
         """
+        self.img.figure.canvas.mpl_disconnect('key_press_event')
         self.img.figure.canvas.mpl_disconnect('button_press_event')
         self.img.figure.canvas.mpl_disconnect('button_release_event')
+
+    def _on_key_press(self, event):
+        """
+        """
+        # return if not in list of c
+        if event.key not in self.locations_markers.keys():
+            return
+
 
     def _on_click(self, event):
         """
@@ -73,6 +98,10 @@ class MarkerBuilder:
         self.img.add_patch(self.inner_circ)
 
         self.img.figure.canvas.draw()
+
+        # skip if there is no selection
+        if self.curr_selection is None:
+            return
 
     def _on_release(self, event):
         """
