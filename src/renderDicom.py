@@ -9,6 +9,29 @@ from matplotlib import pyplot, cm
 from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor
 
+class CircleCollection:
+    def __init__(self):
+        # initialize valid circle locations
+        self.valid_location_types = [
+            "BLOOD_VESSLE_1",
+            "BLOOD_VESSLE_2",
+            "BLOOD_VESSLE_3",
+            "BLOOD_VESSLE_4",
+        ]
+
+        # set all circle_locations as (None, None)
+        {x: (None, None) for x in self.valid_location_types}
+
+    def add_circle_location(self, location_type):
+        """
+        """
+        if location_type not in self.valid_location_types:
+            raise AssertionError("Location type not in predefined location types")
+
+    def retrieve_all_locations(self):
+        """
+        """
+
 class MarkerBuilder:
     def __init__(self, img):
         # set self object
@@ -17,9 +40,9 @@ class MarkerBuilder:
         # get x and y limits
         self.x_max = img.get_xlim()[1]
         self.y_max = img.get_ylim()[0]
-        print("x max: " + str(self.x_max) + " y max: " + str(self.y_max))
 
-        self.click = None
+        self.circ_collect = CircleCollection()
+
     def connect(self):
         """
         connection hooks
@@ -38,16 +61,7 @@ class MarkerBuilder:
         self.img.figure.canvas.mpl_disconnect('button_press_event')
         self.img.figure.canvas.mpl_disconnect('button_release_event')
 
-
-
     def _on_click(self, event):
-        """
-        """
-        sys.stdout.write("x: %d, y: %d\r" % (event.x, event.y))
-        sys.stdout.flush()
-
-
-    def _on_release(self, event):
         """
         """
         # outer circle
@@ -60,6 +74,13 @@ class MarkerBuilder:
 
         self.img.figure.canvas.draw()
 
+    def _on_release(self, event):
+        """
+        """
+        # outer circle
+        self.outer_circ.remove()
+
+        self.img.figure.canvas.draw()
 
 # functions to contorl
 def fun1(event):
