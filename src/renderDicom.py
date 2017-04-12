@@ -50,9 +50,14 @@ class MarkerBuilder:
     def _on_release(self, event):
         """
         """
-        self.circ = Circle((self.x_max-event.x, self.y_max-event.y), 10, edgecolor='red', fill=False)
-        self.circ = Circle((event.xdata, event.ydata), 10, edgecolor='red', fill=False)
-        self.img.add_patch(self.circ)
+        # outer circle
+        self.outer_circ = Circle((event.xdata, event.ydata), 10, edgecolor='red', fill=False)
+        self.img.add_patch(self.outer_circ)
+
+        # inner circle
+        self.inner_circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
+        self.img.add_patch(self.inner_circ)
+
         self.img.figure.canvas.draw()
 
 
