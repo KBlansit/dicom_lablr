@@ -22,7 +22,7 @@ class CircleCollection:
         # set all circle_data as (None, None)
         self.circle_data = {x: None for x in self.valid_location_types}
 
-    def add_circle_location(self, location_type, circle):
+    def add_circle_location(self, location_type, circle, img):
         """
             location_type: the location that one wants to set
             circle: the circle object
@@ -30,7 +30,16 @@ class CircleCollection:
         if location_type not in self.valid_location_types:
             raise AssertionError("Location type not in predefined location types")
 
-        self.circle_data[location_type] = circle
+        # test if already populated data to reset
+        if self.circle_data[location_type] is not None:
+            # remove old circle
+            self.circle_data[location_type].remove()
+
+            # add new circle
+            self.circle_data[location_type] = circle
+
+        else:
+            self.circle_data[location_type] = circle
 
     def retrieve_all_locations(self):
         """
@@ -51,13 +60,9 @@ class MarkerBuilder:
         # the current blood vessle selected
         self.curr_selection = None
 
-        # TODO: refactor
-        self.locations_markers = {
-            1: "BLOOD_VESSEL_1",
-            2: "BLOOD_VESSEL_2",
-            3: "BLOOD_VESSEL_3",
-            4: "BLOOD_VESSEL_4",
-        }
+        self.locations_markers = {}
+
+        self.locations_markers = {ind + 1: x for ind, x in enumerate(self.circ_collection.valid_location_types)}
 
     def connect(self):
         """
@@ -110,7 +115,7 @@ class MarkerBuilder:
         self.img.add_patch(inner_circ)
 
         print(self.curr_selection)
-        self.circ_collection.add_circle_location(inner_circ, self.curr_selection)
+        self.circ_collection.add_circle_location(self.curr_selection, inner_circ, self.img)
 
         # draw image
         self.img.figure.canvas.draw()
