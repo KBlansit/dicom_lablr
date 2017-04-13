@@ -13,20 +13,24 @@ class CircleCollection:
     def __init__(self):
         # initialize valid circle locations
         self.valid_location_types = [
-            "BLOOD_VESSLE_1",
-            "BLOOD_VESSLE_2",
-            "BLOOD_VESSLE_3",
-            "BLOOD_VESSLE_4",
+            "BLOOD_VESSEL_1",
+            "BLOOD_VESSEL_2",
+            "BLOOD_VESSEL_3",
+            "BLOOD_VESSEL_4",
         ]
 
-        # set all circle_locations as (None, None)
-        {x: (None, None) for x in self.valid_location_types}
+        # set all circle_data as (None, None)
+        self.circle_data = {x: None for x in self.valid_location_types}
 
-    def add_circle_location(self, location_type):
+    def add_circle_location(self, location_type, circle):
         """
+            location_type: the location that one wants to set
+            circle: the circle object
         """
         if location_type not in self.valid_location_types:
             raise AssertionError("Location type not in predefined location types")
+
+        self.circle_data[location_type] = circle
 
     def retrieve_all_locations(self):
         """
@@ -43,17 +47,16 @@ class MarkerBuilder:
 
         # collection of circles
         self.circ_collection = CircleCollection()
-        self.circ_collection.valid_location_types
 
         # the current blood vessle selected
         self.curr_selection = None
 
         # TODO: refactor
         self.locations_markers = {
-            1: "BLOOD_VESSLE_1",
-            2: "BLOOD_VESSLE_2",
-            3: "BLOOD_VESSLE_3",
-            4: "BLOOD_VESSLE_4",
+            1: "BLOOD_VESSEL_1",
+            2: "BLOOD_VESSEL_2",
+            3: "BLOOD_VESSEL_3",
+            4: "BLOOD_VESSEL_4",
         }
 
     def connect(self):
@@ -62,7 +65,7 @@ class MarkerBuilder:
         """
         # keyboard press
         self.cid_keyboard_press = self.img.figure.canvas.mpl_connect(
-        'key_press_event', self._on_release)
+            'key_press_event', self._on_key_press)
         # click
         self.cid_click = self.img.figure.canvas.mpl_connect(
             'button_press_event', self._on_click)
@@ -82,32 +85,45 @@ class MarkerBuilder:
         """
         """
         # return if not in list of c
-        if event.key not in self.locations_markers.keys():
+        if event.key not in str(self.locations_markers.keys()):
             return
 
+        # set to selection
+        self.curr_selection = self.locations_markers[int(event.key)]
 
     def _on_click(self, event):
         """
         """
-        # outer circle
-        self.outer_circ = Circle((event.xdata, event.ydata), 10, edgecolor='red', fill=False)
-        self.img.add_patch(self.outer_circ)
-
-        # inner circle
-        self.inner_circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
-        self.img.add_patch(self.inner_circ)
-
-        self.img.figure.canvas.draw()
-
-        # skip if there is no selection
+        # return if nothing is selected
         if self.curr_selection is None:
             return
+
+        # select the
+
+        # outer circle
+
+        #self.outer_circ = Circle((event.xdata, event.ydata), 10, edgecolor='red', fill=False)
+        #self.img.add_patch(self.outer_circ)
+
+        # inner circle
+        inner_circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
+        self.img.add_patch(inner_circ)
+
+        print(self.curr_selection)
+        self.circ_collection.add_circle_location(inner_circ, self.curr_selection)
+
+        # draw image
+        self.img.figure.canvas.draw()
 
     def _on_release(self, event):
         """
         """
+        # return if nothing is selected
+        if self.curr_selection is None:
+            return
+
         # outer circle
-        self.outer_circ.remove()
+        #self.outer_circ.remove()
 
         self.img.figure.canvas.draw()
 
