@@ -49,6 +49,20 @@ class CircleCollection:
 
         self.circle_location[location_type] = circle.center
 
+    def get_location(self, location_type):
+        """
+        INPUTS:
+            location_type: the location that one wants to set
+        OUTPUT:
+            either None (if location_type not set) or XY locaiton
+        """
+        # return if not a valid selection
+        if location_type not in self.valid_location_types:
+            raise AssertionError("Location type not in predefined location types")
+
+        # returns either None (if location_type not yet set) or XY location
+        return self.circle_location[location_type]
+
     def retrieve_all_locations(self):
         """
         """
@@ -112,13 +126,7 @@ class MarkerBuilder:
             return
 
         # select the
-
-        # outer circle
-
-        #self.outer_circ = Circle((event.xdata, event.ydata), 10, edgecolor='red', fill=False)
-        #self.img.add_patch(self.outer_circ)
-
-        # inner circle
+        # small circle
         inner_circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
         self.img.add_patch(inner_circ)
 
