@@ -67,6 +67,17 @@ class CircleCollection:
         # returns either None (if location_type not yet set) or XY location
         return self.circle_location[location_type]
 
+    def remove_all_circles(self):
+        """
+        EFFECT:
+            removes all circles
+        """
+        for location_type in valid_location_types:
+            # test if already populated data to reset
+            if self.circle_data[location_type] is not None:
+                # remove old circle
+                self.circle_data[location_type].remove()
+
     def retrieve_all_locations(self):
         """
         """
@@ -78,6 +89,7 @@ class MarkerBuilder:
         self.dicom_list = dicom_list
         self.circ_collection = []
 
+        # load firt image
         self._update_image(0)
 
     def connect(self):
@@ -109,8 +121,12 @@ class MarkerBuilder:
         if event.key in str(locations_markers.keys()):
             # set to selection
             self.curr_selection = locations_markers[int(event.key)]
+        elif event.key == "7":
+            self.curr_collection.remove_all_circles()
         elif event.key == "enter":
             self._next_image()
+        elif event.key == "ctrl+enter":
+            self._prev_image()
         else:
             return
 
@@ -178,6 +194,9 @@ class MarkerBuilder:
         # the current blood vessle selected
         self.curr_selection = None
 
+        # update view
+        self.img.figure.canvas.draw()
+
     def _next_image(self):
         if self.curr_idx == len(self.dicom_list) - 1:
             return
@@ -190,6 +209,7 @@ class MarkerBuilder:
             return
 
         self._update_image(self.curr_idx - 1)
+        print "BACK"
 
 
 
