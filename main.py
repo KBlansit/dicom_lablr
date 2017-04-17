@@ -3,6 +3,7 @@
 # import libraries
 import os
 import dicom
+import bisect
 import argparse
 
 # import user defined functions
@@ -17,12 +18,27 @@ def sort_dicom_list(dicom_list):
     """
 
     # test that all elements of the list are dicom objects
-    if not all([True if type(x) == dicom.dataset.FileDataset else False for x in dicom_obj] == False):
+    if not all([True if type(x) == dicom.dataset.FileDataset else False for x in dicom_list]):
         raise AssertionError("Not all elements are dicom images")
 
+    # pop first element to initialize list
+    rslt_dicom_lst = [dicom_list.pop()]
+    rslt_idx = [rslt_dicom_lst[0].InstanceNumber]
 
+    # loop through list
+    for element in dicom_list:
+        # find index
+        idx = bisect.bisect(rslt_idx, element.InstanceNumber)
 
+        # add to lists
+        rslt_dicom_lst.insert(idx, element)
+        rslt_idx.insert(idx, element.InstanceNumber)
 
+    # testing that rslt_idx is sorted (as it shoulf be!)
+    if not sorted(rslt_idx) == rslt_idx:
+        raise AssertionError("Did not sort correctly!")
+
+    return rslt_dicom_lst
 
 # main
 def main():
@@ -43,7 +59,9 @@ def main():
 
     # read dicom files
     dicom_obj = [dicom.read_file(x, force=True) for x in dicom_files]
-    import pdb; pdb.set_trace()
+
+    # sort list
+    dicom_obj = sort_dicom_list(dicom_obj)
     dc = dicom_obj[6]
 
     # render
