@@ -65,7 +65,7 @@ def main():
     dc = dicom_obj[6]
 
     # render
-    plotDicom(dc)
+    plotDicom(dicom_obj)
 
 if __name__ == '__main__':
     main()

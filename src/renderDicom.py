@@ -9,19 +9,23 @@ from matplotlib import pyplot, cm
 from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor
 
+# define valid location types and location markers
+valid_location_types = [
+    "BLOOD_VESSEL_1",
+    "BLOOD_VESSEL_2",
+    "BLOOD_VESSEL_3",
+    "BLOOD_VESSEL_4",
+]
+
+locations_markers = {ind + 1: x for ind, x in enumerate(valid_location_types)}
+
 class CircleCollection:
     def __init__(self):
         # initialize valid circle locations
-        self.valid_location_types = [
-            "BLOOD_VESSEL_1",
-            "BLOOD_VESSEL_2",
-            "BLOOD_VESSEL_3",
-            "BLOOD_VESSEL_4",
-        ]
 
         # set all circle_data and circle_location as None
-        self.circle_data = {x: None for x in self.valid_location_types}
-        self.circle_location = {x: None for x in self.valid_location_types}
+        self.circle_data = {x: None for x in valid_location_types}
+        self.circle_location = {x: None for x in valid_location_types}
 
     def add_circle_location(self, location_type, circle):
         """
@@ -33,7 +37,7 @@ class CircleCollection:
             adds (or replaces) a circle
         """
         # return if not a valid selection
-        if location_type not in self.valid_location_types:
+        if location_type not in valid_location_types:
             raise AssertionError("Location type not in predefined location types")
 
         # test if already populated data to reset
@@ -57,7 +61,7 @@ class CircleCollection:
             either None (if location_type not set) or XY locaiton
         """
         # return if not a valid selection
-        if location_type not in self.valid_location_types:
+        if location_type not in valid_location_types:
             raise AssertionError("Location type not in predefined location types")
 
         # returns either None (if location_type not yet set) or XY location
@@ -68,23 +72,13 @@ class CircleCollection:
         """
 
 class MarkerBuilder:
-    def __init__(self, img):
-        # set self object
+    def __init__(self, img, dicom_list):
+        # store img_lst
         self.img = img
+        self.dicom_list = dicom_list
+        self.circ_collection = []
 
-        # get x and y limits
-        self.x_max = img.get_xlim()[1]
-        self.y_max = img.get_ylim()[0]
-
-        # collection of circles
-        self.circ_collection = CircleCollection()
-
-        # the current blood vessle selected
-        self.curr_selection = None
-
-        self.locations_markers = {}
-
-        self.locations_markers = {ind + 1: x for ind, x in enumerate(self.circ_collection.valid_location_types)}
+        self._update_image(0)
 
     def connect(self):
         """
@@ -112,11 +106,13 @@ class MarkerBuilder:
         """
         """
         # return if not in list of c
-        if event.key not in str(self.locations_markers.keys()):
+        if event.key in str(locations_markers.keys()):
+            # set to selection
+            self.curr_selection = locations_markers[int(event.key)]
+        elif event.key == "enter":
+            self._next_image()
+        else:
             return
-
-        # set to selection
-        self.curr_selection = self.locations_markers[int(event.key)]
 
     def _on_click(self, event):
         """
@@ -130,7 +126,7 @@ class MarkerBuilder:
         inner_circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
         self.img.add_patch(inner_circ)
 
-        self.circ_collection.add_circle_location(self.curr_selection, inner_circ)
+        self.curr_collection.add_circle_location(self.curr_selection, inner_circ)
 
         # draw image
         self.img.figure.canvas.draw()
@@ -147,8 +143,59 @@ class MarkerBuilder:
 
         self.img.figure.canvas.draw()
 
+    def _update_image(self, new_idx):
+        """
+        INPUTS:
+            new_idx
+        EFFECT:
+        """
+
+        # set curr inde and image
+        self.curr_idx = new_idx
+        self.curr_dicom = self.dicom_list[self.curr_idx]
+
+        # render dicom image
+        self.img.imshow(self.curr_dicom.pixel_array, cmap='gray')
+
+        # get x and y limits
+        self.x_max = self.img.get_xlim()[1]
+        self.y_max = self.img.get_ylim()[0]
+
+        # extend if index has not yet been reached
+        if self.curr_idx <= len(self.circ_collection):
+            self.circ_collection.append(CircleCollection())
+
+        # set curr CircleCollection
+        self.curr_collection = self.circ_collection[self.curr_idx]
+
+        # iterate through circles to populate
+        for location_type in valid_location_types:
+            location = self.curr_collection.get_location(location_type)
+            if location is not None:
+                inner_circ = Circle(location, 1, edgecolor='red', fill=True)
+                self.img.add_patch(inner_circ)
+
+        # the current blood vessle selected
+        self.curr_selection = None
+
+    def _next_image(self):
+        if self.curr_idx == len(self.dicom_list) - 1:
+            return
+
+        self._update_image(self.curr_idx + 1)
+        print "UPDATE"
+
+    def _prev_image(self):
+        if self.curr_idx == 0:
+            return
+
+        self._update_image(self.curr_idx - 1)
+
+
+
+
 # primary dicom hook
-def plotDicom(dicom):
+def plotDicom(dicom_list):
     """
     INPUTS:
         dicom:
@@ -162,11 +209,10 @@ def plotDicom(dicom):
 
     # make figure
     ax.set_aspect('equal')
-    ax.imshow(dicom.pixel_array, cmap='gray')
     cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
 
     # connect to function
-    mb = MarkerBuilder(ax)
+    mb = MarkerBuilder(ax, dicom_list)
     mb.connect()
 
     # render
