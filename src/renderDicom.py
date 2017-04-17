@@ -19,14 +19,20 @@ class CircleCollection:
             "BLOOD_VESSEL_4",
         ]
 
-        # set all circle_data as (None, None)
+        # set all circle_data and circle_location as None
         self.circle_data = {x: None for x in self.valid_location_types}
+        self.circle_location = {x: None for x in self.valid_location_types}
 
-    def add_circle_location(self, location_type, circle, img):
+    def add_circle_location(self, location_type, circle):
         """
+        INPUTS:
             location_type: the location that one wants to set
             circle: the circle object
+
+        EFFECT:
+            adds (or replaces) a circle
         """
+        # return if not a valid selection
         if location_type not in self.valid_location_types:
             raise AssertionError("Location type not in predefined location types")
 
@@ -37,9 +43,11 @@ class CircleCollection:
 
             # add new circle
             self.circle_data[location_type] = circle
-
         else:
+            # add new circle
             self.circle_data[location_type] = circle
+
+        self.circle_location[location_type] = circle.center
 
     def retrieve_all_locations(self):
         """
@@ -114,8 +122,7 @@ class MarkerBuilder:
         inner_circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
         self.img.add_patch(inner_circ)
 
-        print(self.curr_selection)
-        self.circ_collection.add_circle_location(self.curr_selection, inner_circ, self.img)
+        self.circ_collection.add_circle_location(self.curr_selection, inner_circ)
 
         # draw image
         self.img.figure.canvas.draw()
@@ -132,18 +139,13 @@ class MarkerBuilder:
 
         self.img.figure.canvas.draw()
 
-# functions to contorl
-def fun1(event):
-    sys.stdout.write("x: %d, y: %d\r" % (event.x, event.y))
-    sys.stdout.flush()
-
 # primary dicom hook
 def plotDicom(dicom):
     """
-    inputs:
+    INPUTS:
         dicom:
             dicom object
-    effect:
+    EFFECT:
         plots dicom object and acts as hook for GUI funcitons
     """
 
@@ -158,8 +160,6 @@ def plotDicom(dicom):
     # connect to function
     mb = MarkerBuilder(ax)
     mb.connect()
-
-    #pyplot.connect('motion_notify_event', fun1)
 
     # render
     pyplot.show()
