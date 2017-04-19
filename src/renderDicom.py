@@ -19,78 +19,22 @@ valid_location_types = [
 
 locations_markers = {ind + 1: x for ind, x in enumerate(valid_location_types)}
 
-class CircleCollection:
-    def __init__(self):
-        # initialize valid circle locations
-
-        # set all circle_data and circle_location as None
-        self.circle_data = {x: None for x in valid_location_types}
-        self.circle_location = {x: None for x in valid_location_types}
-
-    def add_circle_location(self, location_type, circle):
-        """
-        INPUTS:
-            location_type: the location that one wants to set
-            circle: the circle object
-
-        EFFECT:
-            adds (or replaces) a circle
-        """
-        # return if not a valid selection
-        if location_type not in valid_location_types:
-            raise AssertionError("Location type not in predefined location types")
-
-        # test if already populated data to reset
-        if self.circle_data[location_type] is not None:
-            # remove old circle
-            self.circle_data[location_type].remove()
-
-            # add new circle
-            self.circle_data[location_type] = circle
-        else:
-            # add new circle
-            self.circle_data[location_type] = circle
-
-        self.circle_location[location_type] = circle.center
-
-    def get_location(self, location_type):
-        """
-        INPUTS:
-            location_type: the location that one wants to set
-        OUTPUT:
-            either None (if location_type not set) or XY locaiton
-        """
-        # return if not a valid selection
-        if location_type not in valid_location_types:
-            raise AssertionError("Location type not in predefined location types")
-
-        # returns either None (if location_type not yet set) or XY location
-        return self.circle_location[location_type]
-
-    def remove_all_circles(self):
-        """
-        EFFECT:
-            removes all circles
-        """
-        for location_type in valid_location_types:
-            # test if already populated data to reset
-            if self.circle_data[location_type] is not None:
-                # remove old circle
-                self.circle_data[location_type].remove()
-
-    def retrieve_all_locations(self):
-        """
-        """
-
-class MarkerBuilder:
-    def __init__(self, img, dicom_list):
-        # store img_lst
+class RenderDicomSeries:
+    def __init__(self, img, dicom_lst):
+        # store imputs
         self.img = img
-        self.dicom_list = dicom_list
-        self.circ_collection = []
+        self.dicom_lst = dicom_lst
 
-        # load firt image
-        self._update_image(0)
+        # set all circle_data and location_data as None
+        self.circle_data = {x: None for x in valid_location_types}
+        self.location_data = {x: None for x in valid_location_types}
+
+        # initialize current selections
+        self.curr_user_selection = None
+        self.curr_idx = 0
+
+        # initialize image rendering
+        self._update_image(self.curr_idx)
 
     def connect(self):
         """
@@ -114,27 +58,33 @@ class MarkerBuilder:
         self.img.figure.canvas.mpl_disconnect('button_press_event')
         self.img.figure.canvas.mpl_disconnect('button_release_event')
 
-    def _on_key_press(self, event):
+    def _update_image(self, new_idx):
         """
+        INPUTS:
+            new_idx:
+                the index of self.dicom_lst to render
+        EFFECT:
+            updates
         """
-        # return if not in list of c
-        if event.key in str(locations_markers.keys()):
-            # set to selection
-            self.curr_selection = locations_markers[int(event.key)]
-        elif event.key == "7":
-            self.curr_collection.remove_all_circles()
-        elif event.key == "enter":
-            self._next_image()
-        elif event.key == "ctrl+enter":
-            self._prev_image()
-        else:
-            return
+
+        # set curr inde and image
+        self.curr_idx = new_idx
+
+        # render dicom image
+        self.img.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
+
+        # get x and y limits
+        self.x_max = self.img.get_xlim()[1]
+        self.y_max = self.img.get_ylim()[0]
+
+        # update view
+        self.img.figure.canvas.draw()
 
     def _on_click(self, event):
         """
         """
         # return if nothing is selected
-        if self.curr_selection is None:
+        if self.curr_user_selection is None:
             return
 
         # select the
@@ -151,68 +101,56 @@ class MarkerBuilder:
         """
         """
         # return if nothing is selected
-        if self.curr_selection is None:
+        if self.curr_user_selection is None:
+            return
+    def _on_key_press(self, event):
+        """
+        """
+        # return if not in list of c
+        if event.key in str(locations_markers.keys()):
+            # set to selection
+            self.curr_selection = locations_markers[int(event.key)]
+        elif event.key == "up":
+            self._prev_image()
+        elif event.key == "down":
+            self._next_image()
+        else:
             return
 
-        # outer circle
-        #self.outer_circ.remove()
-
-        self.img.figure.canvas.draw()
-
-    def _update_image(self, new_idx):
+    def _add_circle_location(self, location_type):
         """
-        INPUTS:
-            new_idx
-        EFFECT:
         """
+        # return if not a valid selection
+        if location_type not in valid_location_types:
+            raise AssertionError("Location type not in predefined location types")
 
-        # set curr inde and image
-        self.curr_idx = new_idx
-        self.curr_dicom = self.dicom_list[self.curr_idx]
+        # test if already populated data to reset
+        if self.circle_data[location_type] is not None:
+            # remove old circle
+            self.location_data[location_type].remove()
 
-        # render dicom image
-        self.img.imshow(self.curr_dicom.pixel_array, cmap='gray')
-
-        # get x and y limits
-        self.x_max = self.img.get_xlim()[1]
-        self.y_max = self.img.get_ylim()[0]
-
-        # extend if index has not yet been reached
-        if self.curr_idx <= len(self.circ_collection):
-            self.circ_collection.append(CircleCollection())
-
-        # set curr CircleCollection
-        self.curr_collection = self.circ_collection[self.curr_idx]
-
-        # iterate through circles to populate
-        for location_type in valid_location_types:
-            location = self.curr_collection.get_location(location_type)
-            if location is not None:
-                inner_circ = Circle(location, 1, edgecolor='red', fill=True)
-                self.img.add_patch(inner_circ)
-
-        # the current blood vessle selected
-        self.curr_selection = None
-
-        # update view
-        self.img.figure.canvas.draw()
+            # add new circle
+            self.circle_data[location_type] = circle
+        else:
+            # add new circle
+            self.circle_data[location_type] = circle
 
     def _next_image(self):
-        if self.curr_idx == len(self.dicom_list) - 1:
+        if self.curr_idx == len(self.dicom_lst) - 1:
             return
 
         self._update_image(self.curr_idx + 1)
         print "UPDATE"
 
     def _prev_image(self):
+
         if self.curr_idx == 0:
             return
 
         self._update_image(self.curr_idx - 1)
         print "BACK"
 
-# primary dicom hook
-def plotDicom(dicom_list):
+def plotDicom(dicom_lst):
     """
     INPUTS:
         dicom:
@@ -229,11 +167,9 @@ def plotDicom(dicom_list):
     cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
 
     # connect to function
-    mb = MarkerBuilder(ax, dicom_list)
-    mb.connect()
-
-    # render
+    dicomRenderer = RenderDicomSeries(ax, dicom_lst)
+    dicomRenderer.connect()
     pyplot.show()
 
     # clean up
-    mb.disconnect()
+    dicomRenderer.disconnect()

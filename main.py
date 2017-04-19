@@ -6,8 +6,10 @@ import dicom
 import bisect
 import argparse
 
+from matplotlib import pyplot
+
 # import user defined functions
-from src.renderDicom import plotDicom as plotDicom
+from src.renderDicom import plotDicom
 
 def sort_dicom_list(dicom_list):
     """
@@ -62,10 +64,10 @@ def main():
 
     # sort list
     dicom_obj = sort_dicom_list(dicom_obj)
-    dc = dicom_obj[6]
 
     # render
     plotDicom(dicom_obj)
+
 
 if __name__ == '__main__':
     main()
