@@ -20,9 +20,9 @@ valid_location_types = [
 locations_markers = {ind + 1: x for ind, x in enumerate(valid_location_types)}
 
 class RenderDicomSeries:
-    def __init__(self, img, dicom_lst):
+    def __init__(self, ax, dicom_lst):
         # store imputs
-        self.img = img
+        self.ax = ax
         self.dicom_lst = dicom_lst
 
         # set all circle_data and location_data as None
@@ -33,7 +33,10 @@ class RenderDicomSeries:
         self.curr_user_selection = None
         self.curr_idx = 0
 
-        # initialize image rendering
+        # render to image
+        self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
+
+        # finish initialiazation
         self._update_image(self.curr_idx)
 
     def connect(self):
@@ -41,22 +44,22 @@ class RenderDicomSeries:
         connection hooks
         """
         # keyboard press
-        self.cid_keyboard_press = self.img.figure.canvas.mpl_connect(
+        self.cid_keyboard_press = self.ax.figure.canvas.mpl_connect(
             'key_press_event', self._on_key_press)
         # click
-        self.cid_click = self.img.figure.canvas.mpl_connect(
+        self.cid_click = self.ax.figure.canvas.mpl_connect(
             'button_press_event', self._on_click)
         # release
-        self.cid_release = self.img.figure.canvas.mpl_connect(
+        self.cid_release = self.ax.figure.canvas.mpl_connect(
             'button_release_event', self._on_release)
 
     def disconnect(self):
         """
         disconnect
         """
-        self.img.figure.canvas.mpl_disconnect('key_press_event')
-        self.img.figure.canvas.mpl_disconnect('button_press_event')
-        self.img.figure.canvas.mpl_disconnect('button_release_event')
+        self.ax.figure.canvas.mpl_disconnect('key_press_event')
+        self.ax.figure.canvas.mpl_disconnect('button_press_event')
+        self.ax.figure.canvas.mpl_disconnect('button_release_event')
 
     def _update_image(self, new_idx):
         """
@@ -71,14 +74,14 @@ class RenderDicomSeries:
         self.curr_idx = new_idx
 
         # render dicom image
-        self.img.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
+        self.im.set_data(self.dicom_lst[self.curr_idx].pixel_array)
 
         # get x and y limits
-        self.x_max = self.img.get_xlim()[1]
-        self.y_max = self.img.get_ylim()[0]
+        self.x_max = self.ax.get_xlim()[1]
+        self.y_max = self.ax.get_ylim()[0]
 
         # update view
-        self.img.figure.canvas.draw()
+        self.ax.figure.canvas.draw()
 
     def _on_click(self, event):
         """
@@ -90,12 +93,12 @@ class RenderDicomSeries:
         # select the
         # small circle
         inner_circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
-        self.img.add_patch(inner_circ)
+        self.ax.add_patch(inner_circ)
 
         self.curr_collection.add_circle_location(self.curr_selection, inner_circ)
 
         # draw image
-        self.img.figure.canvas.draw()
+        self.ax.figure.canvas.draw()
 
     def _on_release(self, event):
         """
@@ -103,6 +106,7 @@ class RenderDicomSeries:
         # return if nothing is selected
         if self.curr_user_selection is None:
             return
+
     def _on_key_press(self, event):
         """
         """
