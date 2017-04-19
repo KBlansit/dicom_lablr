@@ -211,9 +211,6 @@ class MarkerBuilder:
         self._update_image(self.curr_idx - 1)
         print "BACK"
 
-
-
-
 # primary dicom hook
 def plotDicom(dicom_list):
     """
