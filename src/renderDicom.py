@@ -19,6 +19,8 @@ valid_location_types = [
 
 locations_markers = {ind + 1: x for ind, x in enumerate(valid_location_types)}
 
+initial_usr_msg = ", ".join([str(x) + " []" for x in valid_location_types]) + "\r"
+
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst):
         # store imputs
@@ -40,10 +42,8 @@ class RenderDicomSeries:
         # finish initialiazation
         self._update_image(self.curr_idx)
 
-        usr_msg = "".join([str(x) + " [] " for x in valid_location_types]) + "\r"
-
         # determine
-        sys.stdout.write(usr_msg)
+        sys.stdout.write("Slide 0; " + initial_usr_msg)
         sys.stdout.flush()
 
     def connect(self):
@@ -165,9 +165,11 @@ class RenderDicomSeries:
 
         # concatenate message
         if hasattr(self, "curr_selection"):
-            usr_msg = "".join([x+" ["+y+"] " for x,y in zip(valid_location_types, curr_status)]) + "\r"
+            usr_msg = ", ".join([x+" ["+y+"]" for x,y in zip(valid_location_types, curr_status)]) + "\r"
         else:
-            usr_msg = "".join([str(x) + " [] " for x in valid_location_types]) + "\r"
+            usr_msg = initial_usr_msg
+
+        usr_msg = "Slide: %d; " %  self.curr_idx + usr_msg
 
         # write message
         sys.stdout.write(usr_msg)
