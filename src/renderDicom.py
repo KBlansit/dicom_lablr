@@ -89,8 +89,6 @@ class RenderDicomSeries:
         # update view
         self.ax.figure.canvas.draw()
 
-
-
     def _on_click(self, event):
         """
         """
@@ -117,11 +115,18 @@ class RenderDicomSeries:
 
     def _on_key_press(self, event):
         """
+        INPUTS:
+            event:
+                event object from matplotlib
+        EFFECT:
+            selects markers, moves slides, and prints informaiton
         """
         # return if not in list of c
         if event.key in str(locations_markers.keys()):
             # set to selection
             self.curr_selection = locations_markers[int(event.key)]
+        elif event.key == "escape":
+            self.curr_selection = None
         elif event.key == "up":
             self._prev_image()
         elif event.key == "down":
@@ -143,10 +148,9 @@ class RenderDicomSeries:
             else:
                 usr_msg = "".join([str(x) + " [] " for x in valid_location_types]) + "\r"
 
-            # determine
+            # write message
             sys.stdout.write(usr_msg)
             sys.stdout.flush()
-
 
     def _add_circle_location(self, location_type):
         """
