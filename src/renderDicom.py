@@ -39,6 +39,12 @@ class RenderDicomSeries:
         # finish initialiazation
         self._update_image(self.curr_idx)
 
+        usr_msg = "".join([str(x) + " [] " for x in valid_location_types]) + "\r"
+
+        # determine
+        sys.stdout.write(usr_msg)
+        sys.stdout.flush()
+
     def connect(self):
         """
         connection hooks
@@ -83,6 +89,8 @@ class RenderDicomSeries:
         # update view
         self.ax.figure.canvas.draw()
 
+
+
     def _on_click(self, event):
         """
         """
@@ -121,6 +129,25 @@ class RenderDicomSeries:
         else:
             return
 
+        # print info to console
+        curr_status = [""] * len(valid_location_types)
+
+        # determine the elements that are already chosen
+        for ind, x in enumerate(valid_location_types):
+            if hasattr(self, "curr_selection"):
+                if x == self.curr_selection:
+                    curr_status[ind] = "X"
+                elif self.location_data[x] is not None:
+                    curr_status[ind] = "slice: " + str(self.location_data[x])
+                usr_msg = "".join([x+" ["+y+"] " for x,y in zip(valid_location_types, curr_status)]) + "\r"
+            else:
+                usr_msg = "".join([str(x) + " [] " for x in valid_location_types]) + "\r"
+
+            # determine
+            sys.stdout.write(usr_msg)
+            sys.stdout.flush()
+
+
     def _add_circle_location(self, location_type):
         """
         """
@@ -144,7 +171,6 @@ class RenderDicomSeries:
             return
 
         self._update_image(self.curr_idx + 1)
-        print "UPDATE"
 
     def _prev_image(self):
 
@@ -152,7 +178,6 @@ class RenderDicomSeries:
             return
 
         self._update_image(self.curr_idx - 1)
-        print "BACK"
 
 def plotDicom(dicom_lst):
     """
