@@ -2,6 +2,7 @@
 
 # import libraries
 import sys
+import math
 import dicom
 import numpy as np
 
@@ -107,7 +108,17 @@ class RenderDicomSeries:
         """
         """
         if event.button == 3:
+            # update scrolling
             self.scrolling = True
+
+            # determine necessary delta for movement
+            # update vertical limit
+            vert_lim = (self.im.figure.get_size_inches()*self.im.figure.dpi)[1]
+            self.delta = math.floor(vert_lim/len(self.dicom_lst))
+
+            # initialize curr x and y locations
+            self.last_x, self.last_y = event.x, event.y
+
         else:
             # return if nothing is selected
             if self.curr_selection is None:
@@ -134,8 +145,20 @@ class RenderDicomSeries:
     def _on_movement(self, event):
         """
         """
+        # determine if scrolling
         if self.scrolling:
-            print event.x, event.y
+            # determine current x and y events
+            curr_x, curr_y = event.x, event.y
+
+            # determine if moving up or down
+            if (curr_y - self.last_y) >= self.delta:
+                self.last_x, self.last_y = event.x, event.y
+                self._next_image()
+            elif -(curr_y - self.last_y) > self.delta:
+                self.last_x, self.last_y = event.x, event.y
+                self._prev_image()
+            else:
+                return
         else:
             return
 
@@ -143,6 +166,8 @@ class RenderDicomSeries:
         """
         """
         self.scrolling = False
+        self._prev_x = None
+        self._prev_y = None
 
         # return if nothing is selected
         if self.curr_selection is None:
