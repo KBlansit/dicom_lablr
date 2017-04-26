@@ -153,12 +153,15 @@ class RenderDicomSeries:
             # determine if moving up or down
             if (curr_y - self.last_y) >= self.delta:
                 self.last_x, self.last_y = event.x, event.y
-                self._next_image()
+                self._prev_image()
             elif -(curr_y - self.last_y) > self.delta:
                 self.last_x, self.last_y = event.x, event.y
-                self._prev_image()
+                self._next_image()
             else:
                 return
+
+            # print console msg
+            self._print_console_msg()
         else:
             return
 
@@ -194,6 +197,14 @@ class RenderDicomSeries:
         else:
             return
 
+        # print console msg
+        self._print_console_msg()
+
+    def _print_console_msg(self):
+        """
+        EFFECT:
+            prints current status to console
+        """
         # print info to console
         curr_status = [""] * len(valid_location_types)
 
