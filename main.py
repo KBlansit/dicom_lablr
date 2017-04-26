@@ -47,6 +47,7 @@ def main():
     # pass command line args
     cmd_parse = argparse.ArgumentParser(description = 'Application for scoring dicom files')
     cmd_parse.add_argument('-p', '--path', help = 'path for input dicom files', type=str)
+    cmd_parse.add_argument('-s', '--settings', help = 'path for settings file', type=str)
     cmd_args = cmd_parse.parse_args()
 
     # check command line args
@@ -54,6 +55,11 @@ def main():
         raise AssertionError("No path specified")
     elif not os.path.exists(cmd_args.path):
         raise AssertionError("Cannot locate path: " + cmd_args.path)
+
+    #if cmd_args.settings is None:
+    #    raise AssertionError("No settings path specified")
+    #elif not os.path.exists(cmd_args.settings):
+    #    raise AssertionError("Cannot locate settings: " + cmd_args.path)
 
     # store files and append path
     dicom_files = os.listdir(cmd_args.path)

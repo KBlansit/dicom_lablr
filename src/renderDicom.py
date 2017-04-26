@@ -10,6 +10,9 @@ from matplotlib import pyplot, cm
 from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor
 
+# import user fefined libraries
+from utility import import_anatomic_settings
+
 # define valid location types and location markers
 valid_location_types = [
     "BLOOD_VESSEL_1",
@@ -17,6 +20,7 @@ valid_location_types = [
     "BLOOD_VESSEL_3",
     "BLOOD_VESSEL_4",
 ]
+valid_location_types = import_anatomic_settings("settings/settings.yaml")
 
 locations_markers = {ind + 1: x for ind, x in enumerate(valid_location_types)}
 
