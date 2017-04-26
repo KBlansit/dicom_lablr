@@ -35,6 +35,7 @@ class RenderDicomSeries:
         # initialize current selections
         self.curr_selection = None
         self.curr_idx = 0
+        self.scrolling = False
 
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
@@ -56,6 +57,9 @@ class RenderDicomSeries:
         # click
         self.cid_click = self.ax.figure.canvas.mpl_connect(
             'button_press_event', self._on_click)
+        # movement
+        self.cid_movement = self.ax.figure.canvas.mpl_connect(
+            'motion_notify_event', self._on_movement)
         # release
         self.cid_release = self.ax.figure.canvas.mpl_connect(
             'button_release_event', self._on_release)
@@ -102,31 +106,44 @@ class RenderDicomSeries:
     def _on_click(self, event):
         """
         """
-        # return if nothing is selected
-        if self.curr_selection is None:
+        if event.button == 3:
+            self.scrolling = True
+        else:
+            # return if nothing is selected
+            if self.curr_selection is None:
+                return
+
+            # test if already populated data to reset
+            if self.circle_data[self.curr_selection] is not None:
+                # remove old circle
+                self.circle_data[self.curr_selection].remove()
+
+            # create circle object
+            circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
+            self.circle_data[self.curr_selection] = circ
+            self.circle_data[self.curr_selection].PLOTTED = True
+            self.ax.add_patch(circ)
+
+            # add slice_location and circle location information
+            self.slice_location[self.curr_selection] = self.curr_idx
+            self.circle_location[self.curr_selection] = circ.center
+
+            # draw image
+            self.ax.figure.canvas.draw()
+
+    def _on_movement(self, event):
+        """
+        """
+        if self.scrolling:
+            print event.x, event.y
+        else:
             return
-
-        # test if already populated data to reset
-        if self.circle_data[self.curr_selection] is not None:
-            # remove old circle
-            self.circle_data[self.curr_selection].remove()
-
-        # create circle object
-        circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
-        self.circle_data[self.curr_selection] = circ
-        self.circle_data[self.curr_selection].PLOTTED = True
-        self.ax.add_patch(circ)
-
-        # add slice_location and circle location information
-        self.slice_location[self.curr_selection] = self.curr_idx
-        self.circle_location[self.curr_selection] = circ.center
-
-        # draw image
-        self.ax.figure.canvas.draw()
 
     def _on_release(self, event):
         """
         """
+        self.scrolling = False
+
         # return if nothing is selected
         if self.curr_selection is None:
             return
