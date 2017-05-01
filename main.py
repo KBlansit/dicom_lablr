@@ -64,6 +64,9 @@ def main():
     elif not os.path.exists(cmd_args.settings):
         raise AssertionError("Cannot locate settings: " + cmd_args.path)
 
+    if cmd_args.user is None:
+        raise AssertionError("No user specified")
+
     # store files and append path
     dicom_files = os.listdir(cmd_args.path)
     dicom_files = [cmd_args.path + "/" + x for x in dicom_files]

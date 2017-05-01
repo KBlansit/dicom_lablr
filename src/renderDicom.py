@@ -12,7 +12,7 @@ from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor
 
 # import user fefined libraries
-from utility import import_anatomic_settings
+from utility import import_anatomic_settings, save_output
 
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path):
@@ -28,7 +28,6 @@ class RenderDicomSeries:
 
         # set all circle_data and slice as None
         self.circle_data = {x: None for x in self.valid_location_types}
-        self.circle_location = {x: None for x in self.valid_location_types}
         self.slice_location = {x: None for x in self.valid_location_types}
 
         # initialize current selections
@@ -76,6 +75,26 @@ class RenderDicomSeries:
         OUTPUT:
         returns a pandas dataframe of the coordinates
         """
+        # initialize df
+        df = pd.DataFrame(columns = ["x", "y", "img_slice", "location"])
+
+        # iterate through anatomic types
+        for location in self.valid_location_types:
+            if self.circle_data[location] is None:
+                x, y, img_slice = [[np.nan]] * 3
+            else:
+                x, y = self.circle_data[location].center
+                img_slice = self.slice_location[location]
+                x, y, img_slice = [x], [y], [img_slice]
+            tmp_df = pd.DataFrame({
+                'x': x,
+                'y': y,
+                'img_slice': img_slice,
+                'location': location,
+            })
+            df = df.append(tmp_df)
+
+        return df
 
     def _update_image(self, new_idx):
         """
@@ -147,7 +166,6 @@ class RenderDicomSeries:
 
             # add slice_location and circle location information
             self.slice_location[self.curr_selection] = self.curr_idx
-            self.circle_location[self.curr_selection] = circ.center
 
             # draw image
             self.ax.figure.canvas.draw()

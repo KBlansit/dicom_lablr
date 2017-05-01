@@ -4,6 +4,8 @@
 import os
 import yaml
 
+import pandas as pd
+
 def import_anatomic_settings(path):
     """
     INPUTS:
@@ -33,6 +35,10 @@ def save_output(user_name, case_id, out_data, path=None):
     EFFECT:
         either creates a path or uses specified path to make output
     """
+    # assert out_data is pandas dataframe
+    if not isinstance(out_data, pd.DataFrame):
+        raise TypeError("out data is not dataframe")
+
     # determines if using default path
     if path is None:
         out_path = "output"
@@ -47,4 +53,4 @@ def save_output(user_name, case_id, out_data, path=None):
     save_path = user_name + " - " + case_id + ".csv"
 
     # save data
-    out_data.to_csv(out_path + save_path)
+    out_data.to_csv(out_path + "/" + save_path, index=False)
