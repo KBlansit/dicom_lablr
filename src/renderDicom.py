@@ -5,6 +5,7 @@ import sys
 import math
 import dicom
 import numpy as np
+import pandas as pd
 
 from matplotlib import pyplot, cm
 from matplotlib.patches import Circle
@@ -69,6 +70,12 @@ class RenderDicomSeries:
         self.ax.figure.canvas.mpl_disconnect('key_press_event')
         self.ax.figure.canvas.mpl_disconnect('button_press_event')
         self.ax.figure.canvas.mpl_disconnect('button_release_event')
+
+    def return_data(self):
+        """
+        OUTPUT:
+        returns a pandas dataframe of the coordinates
+        """
 
     def _update_image(self, new_idx):
         """
@@ -207,6 +214,8 @@ class RenderDicomSeries:
             self._prev_image()
         elif event.key == "down":
             self._next_image()
+        elif event.key == "tab":
+            self._close()
         else:
             return
 
@@ -261,7 +270,14 @@ class RenderDicomSeries:
 
         self._update_image(self.curr_idx - 1)
 
-def plotDicom(dicom_lst, settings_path):
+    def _close(self):
+        """
+        EFFECT:
+            closes instance
+        """
+        pyplot.close()
+
+def plotDicom(dicom_lst, cmd_args):
     """
     INPUTS:
         dicom:
@@ -278,9 +294,13 @@ def plotDicom(dicom_lst, settings_path):
     cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
 
     # connect to function
-    dicomRenderer = RenderDicomSeries(ax, dicom_lst, settings_path)
+    dicomRenderer = RenderDicomSeries(ax, dicom_lst, cmd_args.settings)
     dicomRenderer.connect()
     pyplot.show()
 
     # clean up
     dicomRenderer.disconnect()
+
+    # save data
+    out_data = dicomRenderer.return_data()
+    save_output(cmd_args.user, dicom_lst[0].PatientID, out_data, cmd_args.out)

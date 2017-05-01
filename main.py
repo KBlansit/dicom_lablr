@@ -49,6 +49,8 @@ def main():
     cmd_parse = argparse.ArgumentParser(description = 'Application for scoring dicom files')
     cmd_parse.add_argument('-p', '--path', help = 'path for input dicom files', type=str)
     cmd_parse.add_argument('-s', '--settings', help = 'path for settings file', type=str)
+    cmd_parse.add_argument('-u', '--user', help = 'user name', type=str)
+    cmd_parse.add_argument('-o', '--out', help = 'user name', type=str)
     cmd_args = cmd_parse.parse_args()
 
     # check command line args
@@ -73,7 +75,7 @@ def main():
     dicom_obj = sort_dicom_list(dicom_obj)
 
     # render
-    plotDicom(dicom_obj, cmd_args.settings)
+    plotDicom(dicom_obj, cmd_args)
 
 if __name__ == '__main__':
     main()
