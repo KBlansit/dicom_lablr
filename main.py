@@ -14,7 +14,8 @@ from src.renderDicom import plotDicom
 def sort_dicom_list(dicom_list):
     """
     INPUTS:
-        dicom_list: an unsorted list of dicom objects
+        dicom_list:
+            an unsorted list of dicom objects
     OUTPUT:
         sorted list of dicom objects based off of dicom InstanceNumber
     """

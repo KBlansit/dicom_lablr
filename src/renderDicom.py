@@ -198,9 +198,9 @@ class RenderDicomSeries:
             selects markers, moves slides, and prints informaiton
         """
         # return if not in list of c
-        if event.key in str(locations_markers.keys()):
+        if event.key in str(self.locations_markers.keys()):
             # set to selection
-            self.curr_selection = locations_markers[int(event.key)]
+            self.curr_selection = self.locations_markers[int(event.key)]
         elif event.key == "escape":
             self.curr_selection = None
         elif event.key == "up":
@@ -240,14 +240,6 @@ class RenderDicomSeries:
         # write message
         sys.stdout.write(usr_msg)
         sys.stdout.flush()
-
-    def _add_circle_location(self, location_type):
-        """
-        """
-        # return if not a valid selection
-        if location_type not in self.valid_location_types:
-            raise AssertionError("Location type not in predefined location types")
-
 
     def _next_image(self):
         if self.curr_idx == len(self.dicom_lst) - 1:
