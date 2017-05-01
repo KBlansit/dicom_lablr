@@ -13,23 +13,22 @@ from matplotlib.widgets import Cursor
 # import user fefined libraries
 from utility import import_anatomic_settings
 
-# define valid location types and location markers
-valid_location_types = import_anatomic_settings("settings/settings.yaml")
-
-locations_markers = {ind + 1: x for ind, x in enumerate(valid_location_types)}
-
-initial_usr_msg = ", ".join([str(x) + " []" for x in valid_location_types]) + "\r"
-
 class RenderDicomSeries:
-    def __init__(self, ax, dicom_lst):
+    def __init__(self, ax, dicom_lst, settings_path):
+        # start
+        # define valid location types and location markers
+        self.valid_location_types = import_anatomic_settings(settings_path)
+        self.locations_markers = {ind + 1: x for ind, x in enumerate(self.valid_location_types)}
+        initial_usr_msg = ", ".join([str(x) + " []" for x in self.valid_location_types]) + "\r"
+
         # store imputs
         self.ax = ax
         self.dicom_lst = dicom_lst
 
         # set all circle_data and slice as None
-        self.circle_data = {x: None for x in valid_location_types}
-        self.circle_location = {x: None for x in valid_location_types}
-        self.slice_location = {x: None for x in valid_location_types}
+        self.circle_data = {x: None for x in self.valid_location_types}
+        self.circle_location = {x: None for x in self.valid_location_types}
+        self.slice_location = {x: None for x in self.valid_location_types}
 
         # initialize current selections
         self.curr_selection = None
@@ -91,7 +90,7 @@ class RenderDicomSeries:
         self.y_max = self.ax.get_ylim()[0]
 
         # determine if need to remove or re-draw circles
-        for x in valid_location_types:
+        for x in self.valid_location_types:
             if self.slice_location[x] == new_idx:
                 self.circle_data[x].set_visible(True)
             elif self.slice_location[x] == None:
@@ -220,10 +219,10 @@ class RenderDicomSeries:
             prints current status to console
         """
         # print info to console
-        curr_status = [""] * len(valid_location_types)
+        curr_status = [""] * len(self.valid_location_types)
 
         # determine the elements that are already chosen
-        for ind, x in enumerate(valid_location_types):
+        for ind, x in enumerate(self.valid_location_types):
             if hasattr(self, "curr_selection"):
                 if x == self.curr_selection:
                     curr_status[ind] = "X"
@@ -232,7 +231,7 @@ class RenderDicomSeries:
 
         # concatenate message
         if hasattr(self, "curr_selection"):
-            usr_msg = ", ".join([x+" ["+y+"]" for x,y in zip(valid_location_types, curr_status)]) + "\r"
+            usr_msg = ", ".join([x+" ["+y+"]" for x,y in zip(self.valid_location_types, curr_status)]) + "\r"
         else:
             usr_msg = initial_usr_msg
 
@@ -246,7 +245,7 @@ class RenderDicomSeries:
         """
         """
         # return if not a valid selection
-        if location_type not in valid_location_types:
+        if location_type not in self.valid_location_types:
             raise AssertionError("Location type not in predefined location types")
 
 
@@ -263,7 +262,7 @@ class RenderDicomSeries:
 
         self._update_image(self.curr_idx - 1)
 
-def plotDicom(dicom_lst):
+def plotDicom(dicom_lst, settings_path):
     """
     INPUTS:
         dicom:
@@ -280,7 +279,7 @@ def plotDicom(dicom_lst):
     cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
 
     # connect to function
-    dicomRenderer = RenderDicomSeries(ax, dicom_lst)
+    dicomRenderer = RenderDicomSeries(ax, dicom_lst, settings_path)
     dicomRenderer.connect()
     pyplot.show()
 

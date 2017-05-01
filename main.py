@@ -56,10 +56,10 @@ def main():
     elif not os.path.exists(cmd_args.path):
         raise AssertionError("Cannot locate path: " + cmd_args.path)
 
-    #if cmd_args.settings is None:
-    #    raise AssertionError("No settings path specified")
-    #elif not os.path.exists(cmd_args.settings):
-    #    raise AssertionError("Cannot locate settings: " + cmd_args.path)
+    if cmd_args.settings is None:
+        raise AssertionError("No settings path specified")
+    elif not os.path.exists(cmd_args.settings):
+        raise AssertionError("Cannot locate settings: " + cmd_args.path)
 
     # store files and append path
     dicom_files = os.listdir(cmd_args.path)
@@ -72,8 +72,7 @@ def main():
     dicom_obj = sort_dicom_list(dicom_obj)
 
     # render
-    plotDicom(dicom_obj)
-
+    plotDicom(dicom_obj, cmd_args.settings)
 
 if __name__ == '__main__':
     main()
