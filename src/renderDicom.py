@@ -14,12 +14,6 @@ from matplotlib.widgets import Cursor
 from utility import import_anatomic_settings
 
 # define valid location types and location markers
-valid_location_types = [
-    "BLOOD_VESSEL_1",
-    "BLOOD_VESSEL_2",
-    "BLOOD_VESSEL_3",
-    "BLOOD_VESSEL_4",
-]
 valid_location_types = import_anatomic_settings("settings/settings.yaml")
 
 locations_markers = {ind + 1: x for ind, x in enumerate(valid_location_types)}
@@ -110,6 +104,12 @@ class RenderDicomSeries:
 
     def _on_click(self, event):
         """
+            INPUT:
+                event:
+                    the event object from matplotlib
+            EFFECT:
+                if right button is pressed, start scrolling
+                if an anatomical landmark is selected, set location
         """
         if event.button == 3:
             # update scrolling
@@ -148,6 +148,11 @@ class RenderDicomSeries:
 
     def _on_movement(self, event):
         """
+            INPUT:
+                event:
+                    the event object from matplotlib
+            EFFECT:
+                scroll up/down slides
         """
         # determine if scrolling
         if self.scrolling:
@@ -171,6 +176,11 @@ class RenderDicomSeries:
 
     def _on_release(self, event):
         """
+            INPUT:
+                event:
+                    the event object from matplotlib
+            EFFECT:
+                reset scrolling
         """
         self.scrolling = False
         self._prev_x = None
