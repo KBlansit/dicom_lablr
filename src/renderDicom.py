@@ -242,13 +242,20 @@ class RenderDicomSeries:
         sys.stdout.flush()
 
     def _next_image(self):
+        """
+        EFFECT:
+            advance image
+        """
         if self.curr_idx == len(self.dicom_lst) - 1:
             return
 
         self._update_image(self.curr_idx + 1)
 
     def _prev_image(self):
-
+        """
+        EFFECT:
+            previous image
+        """
         if self.curr_idx == 0:
             return
 
