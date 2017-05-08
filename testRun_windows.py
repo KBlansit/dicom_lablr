@@ -5,7 +5,7 @@ import os
 
 # define parts of program call
 base_call = 'main.py'
-path_call = '-p data/ex2'
+path_call = '-p data/ex1'
 settings_call = '-s settings/settings.yaml'
 user_call = '-u KevinTst'
 output_call = '-o tst_output'

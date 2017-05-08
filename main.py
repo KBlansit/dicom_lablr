@@ -2,6 +2,7 @@
 
 # import libraries
 import os
+import re
 import dicom
 import bisect
 import argparse
@@ -43,6 +44,12 @@ def sort_dicom_list(dicom_list):
 
     return rslt_dicom_lst
 
+def read_dicom(path):
+    """
+    """
+    if re.search(".dcm$", path) is not None:
+        return dicom.read_file(path, force=True)
+
 # main
 def main():
     # pass command line args
@@ -72,10 +79,11 @@ def main():
     dicom_files = [cmd_args.path + "/" + x for x in dicom_files]
 
     # read dicom files
-    dicom_obj = [dicom.read_file(x, force=True) for x in dicom_files]
+    dicom_lst = [read_dicom(x) for x in dicom_files]
+    dicom_lst = [x for x in dicom_lst if x is not None]
 
     # sort list
-    dicom_obj = sort_dicom_list(dicom_obj)
+    dicom_obj = sort_dicom_list(dicom_lst)
 
     # render
     plotDicom(dicom_obj, cmd_args)
