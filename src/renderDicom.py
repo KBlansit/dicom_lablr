@@ -244,7 +244,7 @@ class RenderDicomSeries:
             self.curr_selection = None
         elif event.key == "tab":
             # removes current selection
-            self.slice_location[self.curr_selection] = None
+            self._reset_location()
 
         # scroll up and down
         elif event.key == "up":
@@ -305,14 +305,16 @@ class RenderDicomSeries:
         EFFECT:
             resets the location
         """
-        # remove old circle
-        self.circle_data[self.curr_selection].remove()
+        # safe way to remove circle
+        if self.circle_data[self.curr_selection] is not None:
+            # remove old circle
+            self.circle_data[self.curr_selection].remove()
+
+            # draw image
+            self.ax.figure.canvas.draw()
 
         # add slice_location and circle location information
         self.slice_location[self.curr_selection] = None
-
-        # draw image
-        self.ax.figure.canvas.draw()
 
     def _next_image(self):
         """
