@@ -1,6 +1,25 @@
 anatomic_landmarks:
-  - "Pulmonary valve"
-  - "Mid main pulmonary arterydistal"
-  - "Main pulmoanry artery"
-  - "Mid right pulmonary artery"
-  - "Distal right pulmonary artery"
+  # https://docs.google.com/spreadsheets/d/1DudBEWzbV9NR53ESiRtu7CE3fLubPBQgHVhQO_8UreA/edit#gid=0
+
+  # main anatomic landmarks
+  - "Pulmonary Valve"
+  - "Main Pulmonary Artery"
+  - "Pulmonary Artery Bifurcation"
+
+  # right anatomic landmarks
+  - "Right Pulmonary Artery Bifurcation"
+  - "Right Upper Lobe"
+  - "Right Interlobar Bifurcation"
+  - "Right Middle Lobe"
+  - "Right Lower Lobe"
+  - "Right Lower Love Lateral Basilar"
+  - "Right Lower Love Posterior Basilar"
+
+  # left anatomic landmarks
+  - "Left Pulmonary Artery Bifurcation"
+  - "Left Upper Lobe"
+  - "Lingular Branch Point"
+  - "Lingular Artery"
+  - "Left Lower Lobe"
+  - "Left Lower Lobe Lateral Basilar"
+  - "Left Lower Lobe Posterior Basilar"
