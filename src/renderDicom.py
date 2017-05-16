@@ -277,24 +277,9 @@ class RenderDicomSeries:
                 slice_loc = " - "
 
             usr_msg = "Current selection: " + self.curr_selection + "[" + slice_loc + "]"
-        usr_msg = "Slide: %d; " %  self.curr_idx + usr_msg
-        usr_msg = "\r" + usr_msg
 
-        ## determine if element is already chosen
-        #for ind, x in enumerate(self.valid_location_types):
-        #    if hasattr(self, "curr_selection"):
-        #        if x == self.curr_selection:
-        #            curr_status[ind] = "X"
-        #        elif self.slice_location[x] is not None:
-        #            curr_status[ind] = "slice: " + str(self.slice_location[x])
-#
-        ## concatenate message
-        #if hasattr(self, "curr_selection"):
-        #    usr_msg = ", ".join([x+" ["+y+"]" for x,y in zip(self.valid_location_types, curr_status)]) + "\r"
-        #else:
-        #    usr_msg = initial_usr_msg
-#
-        #usr_msg = "Slide: %d; " %  self.curr_idx + usr_msg
+        # concatenate messges
+        usr_msg = "\r" + "Slide: %d; " %  self.curr_idx + usr_msg
 
         # write message
         sys.stdout.write(usr_msg.ljust(80))
