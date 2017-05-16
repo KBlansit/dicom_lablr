@@ -321,5 +321,6 @@ def plotDicom(dicom_lst, cmd_args):
 
     # save data
     out_data = dicomRenderer.return_data()
+    out_data = out_data[['location', 'x', 'y', 'img_slice']]
 
     return out_data
