@@ -252,6 +252,15 @@ class RenderDicomSeries:
         elif event.key == "down":
             self._next_image()
 
+        # page up and down
+        elif event.key == "pageup":
+            for _ in range(10):
+                self._prev_image()
+        elif event.key == "pagedown":
+            for _ in range(10):
+                self._next_image()
+
+
         # return results
         elif event.key == "shift+enter":
             self._close()
