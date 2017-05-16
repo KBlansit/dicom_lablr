@@ -10,6 +10,7 @@ import argparse
 from matplotlib import pyplot
 
 # import user defined functions
+from src.utility import save_output
 from src.renderDicom import plotDicom
 
 def sort_dicom_list(dicom_list):
@@ -46,9 +47,46 @@ def sort_dicom_list(dicom_list):
 
 def read_dicom(path):
     """
+    INPUTS:
+        path:
+            a string denoting the path
+    OUTPUT:
+        list object of dicom files
     """
+    # regular expression search for .dcm file
     if re.search(".dcm$", path) is not None:
         return dicom.read_file(path, force=True)
+
+def abstract_study_id(path):
+    """
+    INPUTS:
+        path:
+            a string denoting the path
+    OUTPUT:
+        string of study ID
+    """
+    # define file name
+    f_name = "newPatientNameID.txt"
+
+    # case when there's bo
+    if not [x for x in os.listdir(path) if re.search(f_name, x) is not None]:
+        raise AssertionError("No newPatientNameID.txt file exists")
+
+    # open file and read
+    with open(path + "/" + f_name, "r") as f:
+        data = f.readlines()
+        data = [x.rstrip("\r\n") for x in data]
+
+    # find element that pretains to patientID
+    try:
+        study_id = [x for x in data if re.search("patientID", x)][0]
+    except IndexError:
+        raise AssertionError("No patientID found")
+
+    # remove extra stuff
+    study_id = re.sub("patientID = ", "", study_id)
+
+    return study_id
 
 # main
 def main():
@@ -74,6 +112,9 @@ def main():
     if cmd_args.user is None:
         raise AssertionError("No user specified")
 
+    # return id information
+    study_id = abstract_study_id(cmd_args.path)
+
     # store files and append path
     dicom_files = os.listdir(cmd_args.path)
     dicom_files = [cmd_args.path + "/" + x for x in dicom_files]
@@ -85,8 +126,11 @@ def main():
     # sort list
     dicom_obj = sort_dicom_list(dicom_lst)
 
-    # render
-    plotDicom(dicom_obj, cmd_args)
+    # render and return data
+    rslt_data = plotDicom(dicom_obj, cmd_args)
+
+    # save output
+    save_output(cmd_args.user, study_id, rslt_data, cmd_args.out)
 
 if __name__ == '__main__':
     main()

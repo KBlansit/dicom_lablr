@@ -12,7 +12,7 @@ from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor
 
 # import user fefined libraries
-from utility import import_anatomic_settings, save_output
+from utility import import_anatomic_settings
 
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path):
@@ -321,4 +321,5 @@ def plotDicom(dicom_lst, cmd_args):
 
     # save data
     out_data = dicomRenderer.return_data()
-    save_output(cmd_args.user, dicom_lst[0].PatientID, out_data, cmd_args.out)
+
+    return out_data
