@@ -6,21 +6,28 @@ import math
 import dicom
 import numpy as np
 import pandas as pd
+import matplotlib as mpl
 
 from matplotlib import pyplot, cm
 from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor
 
 # import user fefined libraries
-from utility import import_anatomic_settings, save_output
+from utility import import_anatomic_settings
+
+# global messages
+marker_keys = [
+    "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
+    "q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
+ ]
+initial_usr_msg = "Please select a anatomic landmark"
 
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path):
         # start
         # define valid location types and location markers
         self.valid_location_types = import_anatomic_settings(settings_path)
-        self.locations_markers = {ind + 1: x for ind, x in enumerate(self.valid_location_types)}
-        initial_usr_msg = ", ".join([str(x) + " []" for x in self.valid_location_types]) + "\r"
+        self.locations_markers = dict(zip(marker_keys, self.valid_location_types))
 
         # store imputs
         self.ax = ax
@@ -148,7 +155,7 @@ class RenderDicomSeries:
             # initialize curr x and y locations
             self.last_x, self.last_y = event.x, event.y
 
-        else:
+        elif event.button == 1:
             # return if nothing is selected
             if self.curr_selection is None:
                 return
@@ -206,9 +213,13 @@ class RenderDicomSeries:
             EFFECT:
                 reset scrolling
         """
+        # reset values
         self.scrolling = False
         self._prev_x = None
         self._prev_y = None
+
+        # print
+        self._print_console_msg()
 
         # return if nothing is selected
         if self.curr_selection is None:
@@ -222,17 +233,36 @@ class RenderDicomSeries:
         EFFECT:
             selects markers, moves slides, and prints informaiton
         """
+
         # return if not in list of c
         if event.key in str(self.locations_markers.keys()):
             # set to selection
-            self.curr_selection = self.locations_markers[int(event.key)]
+            self.curr_selection = self.locations_markers[event.key]
+
+        # escape functions
         elif event.key == "escape":
             self.curr_selection = None
+        elif event.key == "tab":
+            # removes current selection
+            self._reset_location()
+
+        # scroll up and down
         elif event.key == "up":
             self._prev_image()
         elif event.key == "down":
             self._next_image()
-        elif event.key == "tab":
+
+        # page up and down
+        elif event.key == "pageup":
+            for _ in range(10):
+                self._prev_image()
+        elif event.key == "pagedown":
+            for _ in range(10):
+                self._next_image()
+
+
+        # return results
+        elif event.key == "shift+enter":
             self._close()
         else:
             return
@@ -245,28 +275,40 @@ class RenderDicomSeries:
         EFFECT:
             prints current status to console
         """
-        # print info to console
-        curr_status = [""] * len(self.valid_location_types)
-
-        # determine the elements that are already chosen
-        for ind, x in enumerate(self.valid_location_types):
-            if hasattr(self, "curr_selection"):
-                if x == self.curr_selection:
-                    curr_status[ind] = "X"
-                elif self.slice_location[x] is not None:
-                    curr_status[ind] = "slice: " + str(self.slice_location[x])
-
-        # concatenate message
-        if hasattr(self, "curr_selection"):
-            usr_msg = ", ".join([x+" ["+y+"]" for x,y in zip(self.valid_location_types, curr_status)]) + "\r"
-        else:
+        # determine if there's a slice chosen
+        if self.curr_selection is None:
             usr_msg = initial_usr_msg
+        else:
+            # determine if slice has already been set
+            if self.slice_location[self.curr_selection] is not None:
+                slice_loc = "slice " + str(self.slice_location[self.curr_selection])
+            else:
+                slice_loc = " - "
 
-        usr_msg = "Slide: %d; " %  self.curr_idx + usr_msg
+            usr_msg = "Current selection: " + self.curr_selection + "[" + slice_loc + "]"
+
+        # concatenate messges
+        usr_msg = "\r" + "Slide: %d; " %  self.curr_idx + usr_msg
 
         # write message
-        sys.stdout.write(usr_msg)
+        sys.stdout.write(usr_msg.ljust(80))
         sys.stdout.flush()
+
+    def _reset_location(self):
+        """
+        EFFECT:
+            resets the location
+        """
+        # safe way to remove circle
+        if self.circle_data[self.curr_selection] is not None:
+            # remove old circle
+            self.circle_data[self.curr_selection].remove()
+
+            # draw image
+            self.ax.figure.canvas.draw()
+
+        # add slice_location and circle location information
+        self.slice_location[self.curr_selection] = None
 
     def _next_image(self):
         """
@@ -303,6 +345,8 @@ def plotDicom(dicom_lst, cmd_args):
     EFFECT:
         plots dicom object and acts as hook for GUI funcitons
     """
+    # toggle off toolbar
+    mpl.rcParams['toolbar'] = 'None'
 
     # make fig object
     fig, (ax) = pyplot.subplots(1)
@@ -321,4 +365,6 @@ def plotDicom(dicom_lst, cmd_args):
 
     # save data
     out_data = dicomRenderer.return_data()
-    save_output(cmd_args.user, dicom_lst[0].PatientID, out_data, cmd_args.out)
+    out_data = out_data[['location', 'x', 'y', 'img_slice']]
+
+    return out_data
