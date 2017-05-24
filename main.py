@@ -56,38 +56,7 @@ def read_dicom(path):
     # regular expression search for .dcm file
     if re.search(".dcm$", path) is not None:
         return dicom.read_file(path, force=True)
-
-def abstract_study_id(path):
-    """
-    INPUTS:
-        path:
-            a string denoting the path
-    OUTPUT:
-        string of study ID
-    """
-    # define file name
-    f_name = "newPatientNameID.txt"
-
-    # case when there's bo
-    if not [x for x in os.listdir(path) if re.search(f_name, x) is not None]:
-        raise AssertionError("No newPatientNameID.txt file exists")
-
-    # open file and read
-    with open(path + "/" + f_name, "r") as f:
-        data = f.readlines()
-        data = [x.rstrip("\r\n") for x in data]
-
-    # find element that pretains to patientID
-    try:
-        study_id = [x for x in data if re.search("patientID", x)][0]
-    except IndexError:
-        raise AssertionError("No patientID found")
-
-    # remove extra stuff
-    study_id = re.sub("patientID = ", "", study_id)
-
-    return study_id
-
+        
 # main
 def main():
     # pass command line args
@@ -112,9 +81,6 @@ def main():
     if cmd_args.user is None:
         raise AssertionError("No user specified")
 
-    # return id information
-    study_id = abstract_study_id(cmd_args.path)
-
     # store files and append path
     dicom_files = os.listdir(cmd_args.path)
     dicom_files = [cmd_args.path + "/" + x for x in dicom_files]
@@ -122,6 +88,9 @@ def main():
     # read dicom files
     dicom_lst = [read_dicom(x) for x in dicom_files]
     dicom_lst = [x for x in dicom_lst if x is not None]
+
+    # use study ID from 1st case
+    study_id = dicom_lst[0].StudyID
 
     # sort list
     dicom_obj = sort_dicom_list(dicom_lst)
