@@ -20,4 +20,4 @@ cmd_lst = [
 # source and run file
 os.system("export DISPLAY=localhost:0.0")
 os.system("chmod +x " + base_call)
-os.system(" ".join(cmd_lst))
+os.system("./"+" ".join(cmd_lst))

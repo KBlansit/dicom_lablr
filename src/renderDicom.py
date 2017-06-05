@@ -147,13 +147,11 @@ class RenderDicomSeries:
             # update scrolling
             self.scrolling = True
 
-            # determine necessary delta for movement
-            # update vertical limit
-            vert_lim = (self.im.figure.get_size_inches()*self.im.figure.dpi)[1]
-            self.delta = math.floor(vert_lim/len(self.dicom_lst))
+            print self.im.get_clim()
+            self.im.set_clim(-2000, 1000)
 
-            # initialize curr x and y locations
-            self.last_x, self.last_y = event.x, event.y
+            # draw image
+            self.ax.figure.canvas.draw()
 
         elif event.button == 1:
             # return if nothing is selected
