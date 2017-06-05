@@ -45,6 +45,9 @@ class RenderDicomSeries:
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
 
+        # remember default contrast
+        self.default_contrast_window = self.im.get_clim()
+
         # finish initialiazation
         self._update_image(self.curr_idx)
 
@@ -147,8 +150,8 @@ class RenderDicomSeries:
             # update scrolling
             self.scrolling = True
 
-            print self.im.get_clim()
-            self.im.set_clim(-2000, 1000)
+            # initialize curr x and y locations
+            self.last_x, self.last_y = event.x, event.y
 
             # draw image
             self.ax.figure.canvas.draw()
@@ -188,18 +191,26 @@ class RenderDicomSeries:
             # determine current x and y events
             curr_x, curr_y = event.x, event.y
 
-            # determine if moving up or down
-            if (curr_y - self.last_y) >= self.delta:
-                self.last_x, self.last_y = event.x, event.y
-                self._prev_image()
-            elif -(curr_y - self.last_y) > self.delta:
-                self.last_x, self.last_y = event.x, event.y
-                self._next_image()
-            else:
-                return
+            # vertical movement
+            # moving up
+            if (curr_y - self.last_y) >= 0:
+                pass
+            # moving down
+            elif -(curr_y - self.last_y) > 0:
+                pass
+
+            # horizontal movement
+            # moving right
+            if (curr_x - self.last_x) >= 0:
+                pass
+            # moving left
+            elif -(curr_x - self.last_x) > 0:
+                self._increase_contrast_window(-1)
+
+            self.last_x, self.last_y = event.x, event.y
 
             # print console msg
-            self._print_console_msg()
+            #self._print_console_msg()
         else:
             return
 
@@ -327,6 +338,25 @@ class RenderDicomSeries:
             return
 
         self._update_image(self.curr_idx - 1)
+
+    def _increase_contrast_window(self, x_delta):
+        """
+        EFFECT:
+            increases contrast window
+        """
+        # get current contrast
+        curr_clim = self.im.get_clim()
+
+        # find midpoint (int)
+        mid_point = (curr_clim[0] + curr_clim[1]) / 2
+
+        # determine range of contrast window
+        contrast_width = abs(curr_clim[0] - curr_clim[1])
+
+        # change constrast width
+        contrast_width = contrast_width + x_delta
+
+        self.im.set_clim(contrast_width/2 - mid_point, contrast_width/2 + mid_point)
 
     def _close(self):
         """
