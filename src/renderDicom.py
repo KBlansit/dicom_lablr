@@ -16,18 +16,20 @@ from matplotlib.widgets import Cursor
 from utility import import_anatomic_settings
 
 # global messages
-marker_keys = [
+MARKER_KEYS = [
     "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
     "q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
  ]
-initial_usr_msg = "Please select a anatomic landmark"
+INITIAL_USR_MSG = "Please select a anatomic landmark"
+CONTRAST_SCALE = 5
 
+# main class
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path):
         # start
         # define valid location types and location markers
         self.valid_location_types = import_anatomic_settings(settings_path)
-        self.locations_markers = dict(zip(marker_keys, self.valid_location_types))
+        self.locations_markers = dict(zip(MARKER_KEYS, self.valid_location_types))
 
         # store imputs
         self.ax = ax
@@ -52,7 +54,7 @@ class RenderDicomSeries:
         self._update_image(self.curr_idx)
 
         # determine
-        sys.stdout.write("Slide 0; " + initial_usr_msg)
+        sys.stdout.write("Slide 0; " + INITIAL_USR_MSG)
         sys.stdout.flush()
 
     def connect(self):
@@ -193,11 +195,11 @@ class RenderDicomSeries:
 
             # vertical movement
             delta_y = curr_y - self.last_y
-            self._shift_contrast_window(delta_y * 10)
+            self._shift_contrast_window(delta_y * CONTRAST_SCALE)
 
             # horizontal movement
             delta_x = curr_x - self.last_x
-            self._increase_contrast_window(delta_x * 10)
+            self._increase_contrast_window(delta_x * CONTRAST_SCALE)
 
             # update movement data
             self.last_x, self.last_y = event.x, event.y
@@ -260,6 +262,11 @@ class RenderDicomSeries:
             for _ in range(10):
                 self._next_image()
 
+        # resets contrast window
+        elif event.key == "v":
+            self.im.set_clim(self.default_contrast_window)
+            self.ax.figure.canvas.draw()
+
         # return results
         elif event.key == "shift+enter":
             self._close()
@@ -277,7 +284,7 @@ class RenderDicomSeries:
         """
         # determine if there's a slice chosen
         if self.curr_selection is None:
-            usr_msg = initial_usr_msg
+            usr_msg = INITIAL_USR_MSG
         else:
             # determine if slice has already been set
             if self.slice_location[self.curr_selection] is not None:
