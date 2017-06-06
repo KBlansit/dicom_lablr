@@ -143,7 +143,7 @@ class RenderDicomSeries:
                 event:
                     the event object from matplotlib
             EFFECT:
-                if right button is pressed, start scrolling
+                if correct button is pressed, start scrolling
                 if an anatomical landmark is selected, set location
         """
         if event.button == 3:
@@ -192,26 +192,16 @@ class RenderDicomSeries:
             curr_x, curr_y = event.x, event.y
 
             # vertical movement
-            # moving up
-            if (curr_y - self.last_y) >= 0:
-                pass
-            # moving down
-            elif -(curr_y - self.last_y) > 0:
-                pass
+            delta_y = curr_y - self.last_y
+            self._shift_contrast_window(delta_y * 10)
 
-            print curr_x - self.last_x
             # horizontal movement
-            # moving right
-            #if (curr_x - self.last_x) >= 0:
-            #    self._increase_contrast_window(10)
-            # moving left
-            #elif -(curr_x - self.last_x) > 0:
-            #    self._increase_contrast_window(-10)
+            delta_x = curr_x - self.last_x
+            self._increase_contrast_window(delta_x * 10)
 
+            # update movement data
             self.last_x, self.last_y = event.x, event.y
 
-            # print console msg
-            #self._print_console_msg()
         else:
             return
 
@@ -270,22 +260,9 @@ class RenderDicomSeries:
             for _ in range(10):
                 self._next_image()
 
-
         # return results
         elif event.key == "shift+enter":
             self._close()
-
-        #HACK
-        elif event.key == "v":
-            self._increase_contrast_window(-10)
-        elif event.key == "b":
-            self._increase_contrast_window(10)
-
-        #HACK
-        elif event.key == "n":
-            self._shift_contrast_window(-10)
-        elif event.key == "m":
-            self._shift_contrast_window(10)
 
         else:
             return
@@ -353,36 +330,34 @@ class RenderDicomSeries:
 
         self._update_image(self.curr_idx - 1)
 
-    def _increase_contrast_window(self, x_delta):
+    def _increase_contrast_window(self, delta):
         """
         EFFECT:
             increases contrast window
         """
         # get current contrast
         curr_clim = self.im.get_clim()
-        print curr_clim
 
-        half_delta = x_delta/2.
+        half_delta = delta/2.
 
         self.im.set_clim(curr_clim[0] - half_delta, curr_clim[1] + half_delta)
 
         # draw image
         self.ax.figure.canvas.draw()
 
-    def _shift_contrast_window(self, x_delta):
+    def _shift_contrast_window(self, delta):
         """
         EFFECT:
-            increases contrast window
+            shifts contrast window
         """
         # get current contrast
         curr_clim = self.im.get_clim()
 
-        half_delta = x_delta/2
+        half_delta = delta/2
 
         self.im.set_clim(curr_clim[0] + half_delta, curr_clim[1] + half_delta)
 
         # draw image
-        print self.im.get_clim()
         self.ax.figure.canvas.draw()
 
     def _close(self):
