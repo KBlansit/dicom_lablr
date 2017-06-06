@@ -199,13 +199,14 @@ class RenderDicomSeries:
             elif -(curr_y - self.last_y) > 0:
                 pass
 
+            print curr_x - self.last_x
             # horizontal movement
             # moving right
-            if (curr_x - self.last_x) >= 0:
-                pass
+            #if (curr_x - self.last_x) >= 0:
+            #    self._increase_contrast_window(10)
             # moving left
-            elif -(curr_x - self.last_x) > 0:
-                self._increase_contrast_window(-1)
+            #elif -(curr_x - self.last_x) > 0:
+            #    self._increase_contrast_window(-10)
 
             self.last_x, self.last_y = event.x, event.y
 
@@ -273,6 +274,19 @@ class RenderDicomSeries:
         # return results
         elif event.key == "shift+enter":
             self._close()
+
+        #HACK
+        elif event.key == "v":
+            self._increase_contrast_window(-10)
+        elif event.key == "b":
+            self._increase_contrast_window(10)
+
+        #HACK
+        elif event.key == "n":
+            self._shift_contrast_window(-10)
+        elif event.key == "m":
+            self._shift_contrast_window(10)
+
         else:
             return
 
@@ -346,17 +360,30 @@ class RenderDicomSeries:
         """
         # get current contrast
         curr_clim = self.im.get_clim()
+        print curr_clim
 
-        # find midpoint (int)
-        mid_point = (curr_clim[0] + curr_clim[1]) / 2
+        half_delta = x_delta/2.
 
-        # determine range of contrast window
-        contrast_width = abs(curr_clim[0] - curr_clim[1])
+        self.im.set_clim(curr_clim[0] - half_delta, curr_clim[1] + half_delta)
 
-        # change constrast width
-        contrast_width = contrast_width + x_delta
+        # draw image
+        self.ax.figure.canvas.draw()
 
-        self.im.set_clim(contrast_width/2 - mid_point, contrast_width/2 + mid_point)
+    def _shift_contrast_window(self, x_delta):
+        """
+        EFFECT:
+            increases contrast window
+        """
+        # get current contrast
+        curr_clim = self.im.get_clim()
+
+        half_delta = x_delta/2
+
+        self.im.set_clim(curr_clim[0] + half_delta, curr_clim[1] + half_delta)
+
+        # draw image
+        print self.im.get_clim()
+        self.ax.figure.canvas.draw()
 
     def _close(self):
         """
