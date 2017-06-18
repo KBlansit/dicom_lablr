@@ -325,18 +325,23 @@ class RenderDicomSeries:
         if self.curr_selection is None:
             return
 
+        # return if slice location not valid
+        if self.slice_location[self.curr_selection] == None:
+            return
+
         # test if already populated data to reset
         if self.circle_data[self.curr_selection] is not None:
             # remove old circle
             self.circle_data[self.curr_selection].remove()
+
+            # if it dumb and it works, it ain't dumb...
+            self.circle_data[self.curr_selection] = None
 
         # draw image
         self.ax.figure.canvas.draw()
 
         # remove slice location
         self.slice_location[self.curr_selection] =  None
-
-        # print
 
     def _next_image(self):
         """
