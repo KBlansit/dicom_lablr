@@ -47,7 +47,7 @@ class RenderDicomSeries:
         self.scrolling = False
 
         # initialize monitering dataframe
-        self.click_df = pd.DataFrame(columns = ['timestamp', 'selection'])
+        self.click_df = pd.DataFrame(columns = ['timestamp', 'selection', 'type'])
 
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
@@ -186,6 +186,7 @@ class RenderDicomSeries:
             self.click_df = self.click_df.append(pd.DataFrame({
                 'timestamp':[datetime.datetime.now()],
                 'selection':[self.curr_selection],
+                'type': 'add'
             })).reindex()
 
             # draw image
@@ -342,6 +343,13 @@ class RenderDicomSeries:
 
         # remove slice location
         self.slice_location[self.curr_selection] =  None
+
+        # add click information to dataframe
+        self.click_df = self.click_df.append(pd.DataFrame({
+            'timestamp':[datetime.datetime.now()],
+            'selection':[self.curr_selection],
+            'type': 'remove'
+        })).reindex()
 
     def _next_image(self):
         """
