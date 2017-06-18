@@ -279,8 +279,12 @@ class RenderDicomSeries:
             self.ax.figure.canvas.draw()
 
         # return results
-        elif event.key == "shift+enter":
-            self._close()
+        elif event.key == "return":
+                print "EEEE"
+                self._close()
+        elif event.key == "enter":
+                print "EEEE"
+                self._close()
 
         else:
             return
