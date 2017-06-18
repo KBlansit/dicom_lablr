@@ -255,8 +255,9 @@ class RenderDicomSeries:
         # escape functions
         elif event.key == "escape":
             self.curr_selection = None
-        elif event.key == "tab":
-            # removes current selection
+
+        # removes current selection
+        elif event.key == "~":
             self._reset_location()
 
         # scroll up and down
@@ -320,16 +321,22 @@ class RenderDicomSeries:
         EFFECT:
             resets the location
         """
-        # safe way to remove circle
+        # return if nothing is selected
+        if self.curr_selection is None:
+            return
+
+        # test if already populated data to reset
         if self.circle_data[self.curr_selection] is not None:
             # remove old circle
             self.circle_data[self.curr_selection].remove()
 
-            # draw image
-            self.ax.figure.canvas.draw()
+        # draw image
+        self.ax.figure.canvas.draw()
 
-        # add slice_location and circle location information
-        self.slice_location[self.curr_selection] = None
+        # remove slice location
+        self.slice_location[self.curr_selection] =  None
+
+        # print
 
     def _next_image(self):
         """
