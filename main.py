@@ -56,7 +56,7 @@ def read_dicom(path):
     # regular expression search for .dcm file
     if re.search(".dcm$", path) is not None:
         return dicom.read_file(path, force=True)
-        
+
 # main
 def main():
     # pass command line args
@@ -96,10 +96,10 @@ def main():
     dicom_obj = sort_dicom_list(dicom_lst)
 
     # render and return data
-    rslt_data = plotDicom(dicom_obj, cmd_args)
+    rslt_data, click_df = plotDicom(dicom_obj, cmd_args)
 
     # save output
-    save_output(cmd_args.user, study_id, rslt_data, cmd_args.out)
+    save_output(cmd_args.user, study_id, rslt_data, click_df, cmd_args.out)
 
 if __name__ == '__main__':
     main()

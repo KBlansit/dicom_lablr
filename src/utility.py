@@ -55,4 +55,4 @@ def save_output(user_name, case_id, out_data, click_df, path=None):
 
     # save data
     out_data.to_csv(out_path + "/" + save_path_data, index=False)
-    out_data.to_csv(out_path + "/" + save_path_timestamps, index=False)
+    click_df.to_csv(out_path + "/" + save_path_timestamps, index=False)

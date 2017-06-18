@@ -111,7 +111,7 @@ class RenderDicomSeries:
             })
             df = df.append(tmp_df)
 
-        return df
+        return df, self.click_df
 
     def _update_image(self, new_idx):
         """
@@ -280,12 +280,11 @@ class RenderDicomSeries:
 
         # return results
         elif event.key == "return":
-                print "EEEE"
                 self._close()
         elif event.key == "enter":
-                print "EEEE"
                 self._close()
 
+        # else quit
         else:
             return
 
@@ -416,7 +415,7 @@ def plotDicom(dicom_lst, cmd_args):
     dicomRenderer.disconnect()
 
     # save data
-    out_data = dicomRenderer.return_data()
+    out_data, click_df = dicomRenderer.return_data()
     out_data = out_data[['location', 'x', 'y', 'img_slice']]
 
-    return out_data
+    return out_data, click_df
