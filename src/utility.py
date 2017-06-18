@@ -21,7 +21,7 @@ def import_anatomic_settings(path):
     except:
         raise IOError("Cannot locate path: " + str(path))
 
-def save_output(user_name, case_id, out_data, path=None):
+def save_output(user_name, case_id, out_data, click_df, path=None):
     """
     INPUT:
         user_name:
@@ -50,7 +50,9 @@ def save_output(user_name, case_id, out_data, path=None):
         os.makedirs(out_path)
 
     # make a save path
-    save_path = user_name + " - " + case_id + ".csv"
+    save_path_data = user_name + " - " + case_id + " - data" + ".csv"
+    save_path_timestamps = user_name + " - " + case_id + " - timestamps" + ".csv"
 
     # save data
-    out_data.to_csv(out_path + "/" + save_path, index=False)
+    out_data.to_csv(out_path + "/" + save_path_data, index=False)
+    out_data.to_csv(out_path + "/" + save_path_timestamps, index=False)

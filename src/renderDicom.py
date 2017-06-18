@@ -4,6 +4,8 @@
 import sys
 import math
 import dicom
+import datetime
+
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
@@ -43,6 +45,9 @@ class RenderDicomSeries:
         self.curr_selection = None
         self.curr_idx = 0
         self.scrolling = False
+
+        # initialize monitering dataframe
+        self.click_df = pd.DataFrame(columns = ['timestamp', 'selection'])
 
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
@@ -176,6 +181,12 @@ class RenderDicomSeries:
 
             # add slice_location and circle location information
             self.slice_location[self.curr_selection] = self.curr_idx
+
+            # add click information to dataframe
+            self.click_df = self.click_df.append(pd.DataFrame({
+                'timestamp':[datetime.datetime.now()],
+                'selection':[self.curr_selection],
+            })).reindex()
 
             # draw image
             self.ax.figure.canvas.draw()
