@@ -30,6 +30,8 @@ def save_output(user_name, case_id, out_data, click_df, path=None):
             the string case id
         out_data:
             the pandas dataframe of data
+        click_df:
+            the pandas dataframe of clck info
         path:
             the optional path, if none, uses default
     EFFECT:
@@ -45,9 +47,26 @@ def save_output(user_name, case_id, out_data, click_df, path=None):
     else:
         out_path = path
 
-    # create directory if it doesn't exist
+    # create output directory if it doesn't exist
     if not os.path.exists(out_path):
         os.makedirs(out_path)
+
+    # add case directory
+    out_path = out_path + "/" + case_id
+
+    # if case output directory exists, make a new one
+    if os.path.exists(out_path):
+        # determine max iteration
+        tmp_path = out_path
+        i = 1
+        while os.path.exists(tmp_path):
+            tmp_path = out_path + " - " + str(i)
+            i = i + 1
+
+        out_path = out_path + " - " + str(i - 1)
+
+    os.makedirs(out_path)
+
 
     # make a save path
     save_path_data = user_name + " - " + case_id + " - data" + ".csv"
