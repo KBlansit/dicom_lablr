@@ -68,7 +68,6 @@ class RenderDicomSeries:
                 self.ax.add_patch(circ)
 
                 # add slice loc data
-                print(row['img_slice'])
                 self.slice_location[curr_marker] = row['img_slice']
 
         # set all circle_data and slice as None
