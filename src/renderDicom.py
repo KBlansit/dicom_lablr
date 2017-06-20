@@ -15,7 +15,7 @@ from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor
 
 # import user fefined libraries
-from utility import import_anatomic_settings
+from src.utility import import_anatomic_settings
 
 # global messages
 MARKER_KEYS = [
@@ -258,7 +258,9 @@ class RenderDicomSeries:
             self.curr_selection = None
 
         # removes current selection
-        elif event.key == "~":
+        elif event.key == "delete":
+            self._reset_location()
+        elif event.key == "backspace":
             self._reset_location()
 
         # scroll up and down
