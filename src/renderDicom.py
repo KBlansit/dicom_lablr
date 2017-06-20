@@ -57,15 +57,19 @@ class RenderDicomSeries:
             self.click_df = pd.read_csv(previous_path + "/timestamps.csv", sep = ",")
 
             # loop through rows
-            for index, row in data_df.itterrows():
+            for index, row in data_df.iterrows():
+                # select curr markere
+                curr_marker = row['location']
+
                 # add circle data
                 circ = Circle((row["x"], row["y"]), 1, edgecolor='red', fill=True)
-                self.circle_data[self.curr_selection] = circ
-                self.circle_data[self.curr_selection].PLOTTED = False
+                self.circle_data[curr_marker] = circ
+                self.circle_data[curr_marker].PLOTTED = False
                 self.ax.add_patch(circ)
 
                 # add slice loc data
-                self.slice_location[row['location']] = row['img_slice']
+                print(row['img_slice'])
+                self.slice_location[curr_marker] = row['img_slice']
 
         # set all circle_data and slice as None
         else:
