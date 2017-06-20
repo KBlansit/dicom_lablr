@@ -378,6 +378,7 @@ class RenderDicomSeries:
         EFFECT:
             increases contrast window
         """
+        print(delta)
         # get current contrast
         curr_clim = self.im.get_clim()
 
