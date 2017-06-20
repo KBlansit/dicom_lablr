@@ -129,7 +129,7 @@ def main():
     dicom_lst = [x for x in dicom_lst if x is not None]
 
     # use study ID from 1st case
-    study_id = dicom_lst[0].StudyID
+    study_id = os.path.relpath(cmd_args.path)
 
     # sort list
     dicom_obj = sort_dicom_list(dicom_lst)
