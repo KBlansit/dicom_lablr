@@ -63,6 +63,7 @@ def main():
     cmd_parse = argparse.ArgumentParser(description = 'Application for scoring dicom files')
     cmd_parse.add_argument('-p', '--path', help = 'path for input dicom files', type=str)
     cmd_parse.add_argument('-s', '--settings', help = 'path for settings file', type=str)
+    cmd_parse.add_argument('-d', '--data', help = 'path for settings file', type=str)
     cmd_parse.add_argument('-u', '--user', help = 'user name', type=str)
     cmd_parse.add_argument('-o', '--out', help = 'user name', type=str)
     cmd_args = cmd_parse.parse_args()
@@ -77,6 +78,10 @@ def main():
         raise AssertionError("No settings path specified")
     elif not os.path.exists(cmd_args.settings):
         raise AssertionError("Cannot locate settings: " + cmd_args.path)
+
+    if cmd_args.data is not None:
+        if not os.path.exists(cmd_args.data):
+            raise AssertionError("Cannot locate data file: " + cmd_args.data)
 
     if cmd_args.user is None:
         raise AssertionError("No user specified")
@@ -96,7 +101,10 @@ def main():
     dicom_obj = sort_dicom_list(dicom_lst)
 
     # render and return data
-    rslt_data, click_df = plotDicom(dicom_obj, cmd_args)
+    if cmd_args.data is None:
+        rslt_data, click_df = plotDicom(dicom_obj, cmd_args)
+    else:
+        rslt_data, click_df = plotDicom(dicom_obj, cmd_args, cmd_args.data)
 
     # save output
     save_output(cmd_args.user, study_id, rslt_data, click_df, cmd_args.out)
