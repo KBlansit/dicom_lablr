@@ -27,11 +27,17 @@ CONTRAST_SCALE = 5
 
 # main class
 class RenderDicomSeries:
-    def __init__(self, ax, dicom_lst, settings_path):
-        # start
+    def __init__(self, ax, dicom_lst, settings_path, previous_path=None):
         # define valid location types and location markers
         self.valid_location_types = import_anatomic_settings(settings_path)
         self.locations_markers = dict(zip(MARKER_KEYS, self.valid_location_types))
+
+        # initialize monitering dataframe
+        self.click_df = pd.DataFrame(columns = ['timestamp', 'selection', 'type'])
+
+        # load data if previous_path specified
+        if previous_path is not None:
+            self.circle_data
 
         # store imputs
         self.ax = ax
@@ -45,9 +51,6 @@ class RenderDicomSeries:
         self.curr_selection = None
         self.curr_idx = 0
         self.scrolling = False
-
-        # initialize monitering dataframe
-        self.click_df = pd.DataFrame(columns = ['timestamp', 'selection', 'type'])
 
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
@@ -411,7 +414,7 @@ class RenderDicomSeries:
         """
         pyplot.close()
 
-def plotDicom(dicom_lst, cmd_args):
+def plotDicom(dicom_lst, cmd_args, previous_directory=None):
     """
     INPUTS:
         dicom:
@@ -419,6 +422,10 @@ def plotDicom(dicom_lst, cmd_args):
     EFFECT:
         plots dicom object and acts as hook for GUI funcitons
     """
+    # determine if loading previous data
+    #if previous_directory is not None:
+
+
     # toggle off toolbar
     mpl.rcParams['toolbar'] = 'None'
 
