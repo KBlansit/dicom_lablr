@@ -455,7 +455,11 @@ def plotDicom(dicom_lst, cmd_args, previous_directory=None):
     cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
 
     # connect to function
-    dicomRenderer = RenderDicomSeries(ax, dicom_lst, cmd_args.settings)
+    if previous_directory is None:
+        dicomRenderer = RenderDicomSeries(ax, dicom_lst, cmd_args.settings)
+    else:
+        dicomRenderer = RenderDicomSeries(ax, dicom_lst, cmd_args.settings, previous_directory)
+
     dicomRenderer.connect()
     pyplot.show()
 
