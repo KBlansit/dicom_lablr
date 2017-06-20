@@ -96,16 +96,15 @@ def main():
         system_state = "NEW_FILE"
 
     # have preivous metadata and data
-    elif cmd_args.meta is not None and cmd_args.data is not None:
+    elif cmd_args.meta is not None:
         # make sure path is valid
         if not os.path.exists(cmd_args.path):
             raise AssertionError("Cannot locate metadata path: " + cmd_args.meta)
 
         # load meta data
         try:
-            with open(path, "r") as f:
+            with open("meta_data.yaml", "r") as f:
                 data = yaml.load(f)
-                return(data['anatomic_landmarks'])
         except:
             raise IOError("Problem loading: " + str(path))
 
@@ -138,13 +137,14 @@ def main():
     # render and return data
     if system_state == "NEW_FILE":
         rslt_data, click_df = plotDicom(dicom_obj, cmd_args)
+        save_output(input_path, study_id, rslt_data, click_df, cmd_args, False)
     elif system_state == "OLD_FILE":
         rslt_data, click_df = plotDicom(dicom_obj, cmd_args, cmd_args.meta)
+        save_output(input_path, study_id, rslt_data, click_df, cmd_args, True)
     else:
         raise AssertionError("Wrong system state setting")
 
     # save output
-    save_output(input_path, study_id, rslt_data, click_df, cmd_args)
 
 if __name__ == '__main__':
     main()
