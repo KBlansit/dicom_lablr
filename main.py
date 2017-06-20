@@ -70,7 +70,6 @@ def main():
 
     # meta data load
     cmd_parse.add_argument('-m', '--meta', help = 'path for settings file', type=str)
-    cmd_parse.add_argument('-d', '--data', help = 'path for settings file', type=str)
 
     cmd_parse.add_argument('-o', '--out', help = 'user name', type=str)
 
@@ -98,15 +97,15 @@ def main():
     # have preivous metadata and data
     elif cmd_args.meta is not None:
         # make sure path is valid
-        if not os.path.exists(cmd_args.path):
+        if not os.path.exists(cmd_args.meta):
             raise AssertionError("Cannot locate metadata path: " + cmd_args.meta)
 
         # load meta data
         try:
-            with open("meta_data.yaml", "r") as f:
+            with open(cmd_args.meta + "\meta_data.yaml", "r") as f:
                 data = yaml.load(f)
         except:
-            raise IOError("Problem loading: " + str(path))
+            raise IOError("Problem loading: " + str(cmd_args.meta))
 
         # load from meta data
         user = data['user']
@@ -122,19 +121,19 @@ def main():
 
     # store files and append path
     dicom_files = os.listdir(input_path)
-    dicom_files = [cmd_args.path + "/" + x for x in dicom_files]
+    dicom_files = [input_path + "/" + x for x in dicom_files]
 
     # read dicom files
     dicom_lst = [read_dicom(x) for x in dicom_files]
     dicom_lst = [x for x in dicom_lst if x is not None]
 
     # use study ID from 1st case
-    study_id = os.path.relpath(cmd_args.path)
+    study_id = os.path.relpath(input_path)
 
     # sort list
     dicom_obj = sort_dicom_list(dicom_lst)
 
-    # render and return data
+    # render and return data, then save output
     if system_state == "NEW_FILE":
         rslt_data, click_df = plotDicom(dicom_obj, cmd_args)
         save_output(input_path, study_id, rslt_data, click_df, cmd_args, False)
@@ -143,8 +142,6 @@ def main():
         save_output(input_path, study_id, rslt_data, click_df, cmd_args, True)
     else:
         raise AssertionError("Wrong system state setting")
-
-    # save output
 
 if __name__ == '__main__':
     main()
