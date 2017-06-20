@@ -421,6 +421,10 @@ class RenderDicomSeries:
         EFFECT:
             shifts contrast window
         """
+        # limits on delta
+        if abs(delta) > 500:
+            delta = 500
+            
         # get current contrast
         curr_clim = self.im.get_clim()
 
