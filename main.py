@@ -3,6 +3,7 @@
 # import libraries
 import os
 import re
+import yaml
 import dicom
 import bisect
 import argparse
@@ -61,30 +62,55 @@ def read_dicom(path):
 def main():
     # pass command line args
     cmd_parse = argparse.ArgumentParser(description = 'Application for scoring dicom files')
-    cmd_parse.add_argument('-p', '--path', help = 'path for input dicom files', type=str)
     cmd_parse.add_argument('-s', '--settings', help = 'path for settings file', type=str)
-    cmd_parse.add_argument('-d', '--data', help = 'path for settings file', type=str)
+
+    # path and user
+    cmd_parse.add_argument('-p', '--path', help = 'path for input dicom files', type=str)
     cmd_parse.add_argument('-u', '--user', help = 'user name', type=str)
+
+    # meta data load
+    cmd_parse.add_argument('-m', '--meta', help = 'path for settings file', type=str)
+
     cmd_parse.add_argument('-o', '--out', help = 'user name', type=str)
+
     cmd_args = cmd_parse.parse_args()
 
     # check command line args
-    if cmd_args.path is None:
-        raise AssertionError("No path specified")
-    elif not os.path.exists(cmd_args.path):
-        raise AssertionError("Cannot locate path: " + cmd_args.path)
-
     if cmd_args.settings is None:
         raise AssertionError("No settings path specified")
     elif not os.path.exists(cmd_args.settings):
         raise AssertionError("Cannot locate settings: " + cmd_args.path)
 
-    if cmd_args.data is not None:
-        if not os.path.exists(cmd_args.data):
-            raise AssertionError("Cannot locate data file: " + cmd_args.data)
+    # either requires path and user or meta data
+    if cmd_args.path is not None and cmd_args.user is not None:
+        # make sure path is valid
+        if not os.path.exists(cmd_args.path):
+            raise AssertionError("Cannot locate path: " + cmd_args.path)
 
-    if cmd_args.user is None:
+        # load parameters
+        user = cmd_args.user
+        input_path = cmd_args.path
+
+    elif cmd_args.meta is not None:
+        # make sure path is valid
+        if not os.path.exists(cmd_args.path):
+            raise AssertionError("Cannot locate metadata path: " + cmd_args.meta)
+
+        # load meta data
+        try:
+            with open(path, "r") as f:
+                data = yaml.load(f)
+                return(data['anatomic_landmarks'])
+        except:
+            raise IOError("Problem loading: " + str(path))
+
+        # load from meta data
+        user = data['user']
+        input_path = data['input_path']
+    elif cmd_args.user is None:
         raise AssertionError("No user specified")
+    else:
+        raise AssertionError("Parameter specification error")
 
     # store files and append path
     dicom_files = os.listdir(cmd_args.path)
@@ -101,13 +127,13 @@ def main():
     dicom_obj = sort_dicom_list(dicom_lst)
 
     # render and return data
-    if cmd_args.data is None:
+    if cmd_args.meta is None:
         rslt_data, click_df = plotDicom(dicom_obj, cmd_args)
     else:
-        rslt_data, click_df = plotDicom(dicom_obj, cmd_args, cmd_args.data)
+        rslt_data, click_df = plotDicom(dicom_obj, cmd_args, cmd_args.meta)
 
     # save output
-    save_output(cmd_args.user, study_id, rslt_data, click_df, cmd_args)
+    save_output(input_path, study_id, rslt_data, click_df, cmd_args)
 
 if __name__ == '__main__':
     main()

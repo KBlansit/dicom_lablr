@@ -19,9 +19,9 @@ def import_anatomic_settings(path):
             data = yaml.load(f)
             return(data['anatomic_landmarks'])
     except:
-        raise IOError("Cannot locate path: " + str(path))
+        raise IOError("Problem loading: " + str(path))
 
-def save_output(user_name, case_id, out_data, click_df, cmd_args):
+def save_output(input_path, case_id, out_data, click_df, cmd_args):
     """
     INPUT:
         user_name:
@@ -67,16 +67,17 @@ def save_output(user_name, case_id, out_data, click_df, cmd_args):
             i = i + 1
 
         out_path = out_path + " - " + str(i - 1)
-
     os.makedirs(out_path)
 
-    # make a save path
-    save_path_data = user_name + " - " + case_id + " - data" + ".csv"
-    save_path_timestamps = user_name + " - " + case_id + " - timestamps" + ".csv"
-    input_path = "input_path" + ".txt"
+    # make output dict
+    out_dict = {
+        "user": cmd_args.user,
+        "case": case_id,
+        "input_path": input_path,
+    }
 
     # save data
-    out_data.to_csv(out_path + "/" + save_path_data, index=False)
-    click_df.to_csv(out_path + "/" + save_path_timestamps, index=False)
-    with open(out_path + "/" + input_path, "w") as f:
-        f.write(cmd_args.path)
+    out_data.to_csv(out_path + "/data.csv", index=False)
+    click_df.to_csv(out_path + "/timestamps.csv", index=False)
+    with open(out_path + "/meta_data.yaml", "w") as out_f:
+        yaml.dump(out_dict, out_f)
