@@ -70,6 +70,7 @@ def main():
 
     # meta data load
     cmd_parse.add_argument('-m', '--meta', help = 'path for settings file', type=str)
+    cmd_parse.add_argument('-d', '--data', help = 'path for settings file', type=str)
 
     cmd_parse.add_argument('-o', '--out', help = 'user name', type=str)
 
@@ -91,7 +92,11 @@ def main():
         user = cmd_args.user
         input_path = cmd_args.path
 
-    elif cmd_args.meta is not None:
+        # set system state
+        system_state = "NEW_FILE"
+
+    # have preivous metadata and data
+    elif cmd_args.meta is not None and cmd_args.data is not None:
         # make sure path is valid
         if not os.path.exists(cmd_args.path):
             raise AssertionError("Cannot locate metadata path: " + cmd_args.meta)
@@ -107,13 +112,17 @@ def main():
         # load from meta data
         user = data['user']
         input_path = data['input_path']
+
+        # set system state
+        system_state = "OLD_FILE"
+
     elif cmd_args.user is None:
         raise AssertionError("No user specified")
     else:
         raise AssertionError("Parameter specification error")
 
     # store files and append path
-    dicom_files = os.listdir(cmd_args.path)
+    dicom_files = os.listdir(input_path)
     dicom_files = [cmd_args.path + "/" + x for x in dicom_files]
 
     # read dicom files
@@ -127,10 +136,12 @@ def main():
     dicom_obj = sort_dicom_list(dicom_lst)
 
     # render and return data
-    if cmd_args.meta is None:
+    if system_state == "NEW_FILE":
         rslt_data, click_df = plotDicom(dicom_obj, cmd_args)
-    else:
+    elif system_state == "OLD_FILE":
         rslt_data, click_df = plotDicom(dicom_obj, cmd_args, cmd_args.meta)
+    else:
+        raise AssertionError("Wrong system state setting")
 
     # save output
     save_output(input_path, study_id, rslt_data, click_df, cmd_args)
