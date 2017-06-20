@@ -107,7 +107,7 @@ def main():
         rslt_data, click_df = plotDicom(dicom_obj, cmd_args, cmd_args.data)
 
     # save output
-    save_output(cmd_args.user, study_id, rslt_data, click_df, cmd_argspath, cmd_args.out)
+    save_output(cmd_args.user, study_id, rslt_data, click_df, cmd_args)
 
 if __name__ == '__main__':
     main()

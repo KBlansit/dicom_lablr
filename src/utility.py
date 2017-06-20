@@ -55,7 +55,7 @@ def save_output(user_name, case_id, out_data, click_df, cmd_args):
     out_path = out_path + "/" + case_id
 
     # if not redoing old file
-    if
+    #if
 
     # if case output directory exists, make a new one
     if os.path.exists(out_path):
