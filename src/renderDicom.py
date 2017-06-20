@@ -32,20 +32,9 @@ class RenderDicomSeries:
         self.valid_location_types = import_anatomic_settings(settings_path)
         self.locations_markers = dict(zip(MARKER_KEYS, self.valid_location_types))
 
-        # initialize monitering dataframe
-        self.click_df = pd.DataFrame(columns = ['timestamp', 'selection', 'type'])
-
-        # load data if previous_path specified
-        if previous_path is not None:
-            self.circle_data
-
         # store imputs
         self.ax = ax
         self.dicom_lst = dicom_lst
-
-        # set all circle_data and slice as None
-        self.circle_data = {x: None for x in self.valid_location_types}
-        self.slice_location = {x: None for x in self.valid_location_types}
 
         # initialize current selections
         self.curr_selection = None
@@ -57,6 +46,35 @@ class RenderDicomSeries:
 
         # remember default contrast
         self.default_contrast_window = self.im.get_clim()
+
+        # load data if previous_path specified
+        if previous_path is not None:
+            # initialize circ and slice loc dicts
+            self.circle_data = {}
+            self.slice_location = {}
+
+            data_df = pd.read_csv(previous_path + "/data.csv", sep = ",")
+            self.click_df = pd.read_csv(previous_path + "/timestamps.csv", sep = ",")
+
+            # loop through rows
+            for index, row in data_df.itterrows():
+                # add circle data
+                circ = Circle((row["x"], row["y"]), 1, edgecolor='red', fill=True)
+                self.circle_data[self.curr_selection] = circ
+                self.circle_data[self.curr_selection].PLOTTED = False
+                self.ax.add_patch(circ)
+
+                # add slice loc data
+                self.slice_location[row['location']] = row['img_slice']
+
+        # set all circle_data and slice as None
+        else:
+            self.circle_data = {x: None for x in self.valid_location_types}
+            self.slice_location = {x: None for x in self.valid_location_types}
+
+            # initialize monitering dataframe
+            self.click_df = pd.DataFrame(columns = ['timestamp', 'selection', 'type'])
+
 
         # finish initialiazation
         self._update_image(self.curr_idx)
