@@ -404,7 +404,10 @@ class RenderDicomSeries:
         """
         # limits on delta
         if abs(delta) > 500:
-            delta = 500
+            if delta > 0:
+                delta = 500
+            else:
+                delta = -500
 
         # get current contrast
         curr_clim = self.im.get_clim()
@@ -423,8 +426,11 @@ class RenderDicomSeries:
         """
         # limits on delta
         if abs(delta) > 500:
-            delta = 500
-            
+            if delta > 0:
+                delta = 500
+            else:
+                delta = -500
+
         # get current contrast
         curr_clim = self.im.get_clim()
 
