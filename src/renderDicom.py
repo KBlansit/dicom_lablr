@@ -18,19 +18,29 @@ from matplotlib.widgets import Cursor
 from src.utility import import_anatomic_settings
 
 # global messages
-MARKER_KEYS = [
-    "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",
-    "q", "w", "e", "r", "t", "y", "u", "i", "o", "p",
- ]
 INITIAL_USR_MSG = "Please select a anatomic landmark"
 CONTRAST_SCALE = 5
+
+# disable key maps
+mpl.rcParams['keymap.fullscreen'] = ''
+mpl.rcParams['keymap.home'] = ''
+mpl.rcParams['keymap.back'] = ''
+mpl.rcParams['keymap.forward'] = ''
+mpl.rcParams['keymap.pan'] = ''
+mpl.rcParams['keymap.zoom'] = ''
+mpl.rcParams['keymap.save'] = ''
+mpl.rcParams['keymap.quit'] = ''
+mpl.rcParams['keymap.grid'] = ''
+mpl.rcParams['keymap.yscale'] = ''
+mpl.rcParams['keymap.xscale'] = ''
+mpl.rcParams['keymap.all_axes'] = ''
 
 # main class
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path, previous_path=None):
         # define valid location types and location markers
-        self.valid_location_types = import_anatomic_settings(settings_path)
-        self.locations_markers = dict(zip(MARKER_KEYS, self.valid_location_types))
+        self.locations_markers = import_anatomic_settings(settings_path)
+        self.valid_location_types = [v for k,v in self.locations_markers.items()]
 
         # store imputs
         self.ax = ax
