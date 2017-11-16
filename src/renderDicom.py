@@ -233,14 +233,21 @@ class RenderDicomSeries:
             if self.curr_selection is None:
                 return
 
+            # set default xy_circle_rad
+            xy_circle_rad = None
+
             # test if already populated data to reset
             if self.circle_data[self.curr_selection] is not None:
+                # get old circle radius data
+                xy_circle_rad = self.circle_data[self.curr_selection].radius
+
                 # remove old circle
                 self.circle_data[self.curr_selection].remove()
 
             # create circle object
             if REGEX_PARSE.search(self.curr_selection).group() in self.roi_landmarks:
-                circ = Circle((event.xdata, event.ydata), 60, edgecolor='red', fill=False)
+                xy_circle_rad = xy_circle_rad if xy_circle_rad != None else DEFAULT_XY_RAD
+                circ = Circle((event.xdata, event.ydata), xy_circle_rad, edgecolor='red', fill=False)
             else:
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
@@ -357,11 +364,10 @@ class RenderDicomSeries:
             self._close()
 
         # control radius of current circle if a ROI landmark
-        #HACK
-        elif event.key == "-":
-            print("-")
         elif event.key == "+":
-            print("+")
+            self._change_circle_size(1)
+        elif event.key == "-":
+            self._change_circle_size(-1)
 
         # else quit
         else:
@@ -369,6 +375,28 @@ class RenderDicomSeries:
 
         # print console msg
         self._print_console_msg()
+
+    def _change_circle_size(self, direction):
+        """
+        INPUT:
+            direction:
+                the direction of change for radius
+        EFFECT:
+            changes the size of the circle radius
+        """
+        # return if nothing is selected
+        if self.curr_selection is None:
+            return
+        # return if slice location not valid
+        elif self.slice_location[self.curr_selection] == None:
+            return
+        # anatomy is not a roi circle to change
+        elif REGEX_PARSE.search(self.curr_selection).group() in self.roi_landmarks:
+            curr_rad = self.circle_data[self.curr_selection].radius
+            self.circle_data[self.curr_selection].set_radius(curr_rad + (direction * 1))
+            self.ax.figure.canvas.draw()
+        else:
+            return
 
     def _eval_roi_bounds(self, location):
         """
@@ -427,9 +455,8 @@ class RenderDicomSeries:
         # return if nothing is selected
         if self.curr_selection is None:
             return
-
         # return if slice location not valid
-        if self.slice_location[self.curr_selection] == None:
+        elif self.slice_location[self.curr_selection] == None:
             return
 
         # test if already populated data to reset
