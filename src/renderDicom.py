@@ -240,12 +240,10 @@ class RenderDicomSeries:
                 self.circle_data[self.curr_selection].remove()
 
             # create circle object
-            print(self.roi_landmarks)
-            print(re.search(PARSE_REGEX, self.curr_selection).group())
             if not re.search(PARSE_REGEX, self.curr_selection).group() in self.roi_landmarks:
-                circ = Circle((event.xdata, event.ydata), 60, edgecolor='red', fill=False)
-            else:
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
+            else:
+                circ = Circle((event.xdata, event.ydata), DEFAULT_XY_RAD, edgecolor='red', fill=False)
 
             self.circle_data[self.curr_selection] = circ
             self.circle_data[self.curr_selection].PLOTTED = True
