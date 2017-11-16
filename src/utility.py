@@ -91,3 +91,12 @@ def save_output(input_path, case_id, out_data, click_df, cmd_args, replace):
     click_df.to_csv(out_path + "/timestamps.csv", index=False)
     with open(out_path + "/meta_data.yaml", "w") as out_f:
         yaml.dump(out_dict, out_f)
+
+def parse_multiplicative_str(input_string):
+    """
+    INPUTS:
+        string to parse
+    OUTPUTS:
+        string with redundancies removed
+    """
+    return re.search("([aA-zZ]+)", input_string).group()
