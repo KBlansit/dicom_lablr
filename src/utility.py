@@ -18,7 +18,7 @@ def import_anatomic_settings(path):
     try:
         with open(path, "r") as f:
             data = yaml.load(f)
-            return(data['anatomic_landmarks'])
+            return(data)
     except:
         raise IOError("Problem loading: " + str(path))
 

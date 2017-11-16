@@ -20,6 +20,7 @@ from src.utility import import_anatomic_settings
 # global messages
 INITIAL_USR_MSG = "Please select a anatomic landmark"
 CONTRAST_SCALE = 5
+DEFAULT_Z_AROUND_CENTER = 2
 
 # disable key maps
 mpl.rcParams['keymap.fullscreen'] = ''
@@ -38,8 +39,19 @@ mpl.rcParams['keymap.all_axes'] = ''
 # main class
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path, previous_path=None):
-        # define valid location types and location markers
-        self.locations_markers = import_anatomic_settings(settings_path)
+
+        # import settings
+        settings = import_anatomic_settings(settings_path)
+
+        if "anatomic_landmarks" in settings:
+            self.locations_markers = settings["anatomic_landmarks"]
+        else:
+            raise IOError("settings file {} doesn't have anatomic_landmarks".format(settings_path))
+
+        if hasattr(settings, "calcium_landmarks"):
+            calcium_landmarks = settings["calcium_landmarks"]
+            calcium_landmarks = calcium_landmarks if len(calcium_landmarks) else None
+
         self.valid_location_types = [v for k,v in self.locations_markers.items()]
 
         # store imputs
