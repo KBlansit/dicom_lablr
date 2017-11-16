@@ -96,7 +96,7 @@ class RenderDicomSeries:
                 self.ax.add_patch(circ)
 
                 # add bounding data
-                self.circle_bounds[curr_marker] = row["img_slice"]
+                self.circle_bounds[curr_marker] = row["z_bounds"]
 
                 # add slice loc data
                 self.slice_location[curr_marker] = row['img_slice']
@@ -104,7 +104,7 @@ class RenderDicomSeries:
         # set all circle_data and slice as None
         else:
             self.circle_data = {x: None for x in self.valid_location_types}
-            self.circle_bounds = {x: (None, None) for x in self.valid_location_types}
+            self.circle_bounds = {x: None for x in self.valid_location_types}
             self.slice_location = {x: None for x in self.valid_location_types}
 
             # initialize monitering dataframe
@@ -160,12 +160,6 @@ class RenderDicomSeries:
                 img_slice = self.slice_location[location]
                 x, y, img_slice = [x], [y], [img_slice]
 
-                # get circle bounds
-                if self.circle_bounds is (None, None):
-                    rad, z_len = [np.nan] * 2
-                else:
-                    rad, z_len = self.circle_bounds[location]
-
             tmp_df = pd.DataFrame({
                 'x': x,
                 'y': y,
@@ -199,12 +193,12 @@ class RenderDicomSeries:
         for x in self.valid_location_types:
             if self.slice_location[x] == new_idx:
                 self.circle_data[x].set_visible(True)
+            elif self._eval_roi_bounds(x):
+                self.circle_data[x].set_visible(True)
             elif self.slice_location[x] == None:
                 pass
             elif self.circle_data[x] is not None:
                 self.circle_data[x].set_visible(False)
-            elif self._eval_roi_bounds(x):
-                self.circle_data[x].set_visible(True)
 
         # update view
         self.ax.figure.canvas.draw()
@@ -234,20 +228,29 @@ class RenderDicomSeries:
                 return
 
             # set default xy_circle_rad
-            xy_circle_rad = None
+            roi_xy_rad = None
+            roi_bounds = None
 
             # test if already populated data to reset
             if self.circle_data[self.curr_selection] is not None:
                 # get old circle radius data
-                xy_circle_rad = self.circle_data[self.curr_selection].radius
+                roi_xy_rad = self.circle_data[self.curr_selection].radius
+                roi_bounds = self.circle_bounds[self.curr_selection]
 
                 # remove old circle
                 self.circle_data[self.curr_selection].remove()
 
             # create circle object
             if REGEX_PARSE.search(self.curr_selection).group() in self.roi_landmarks:
-                xy_circle_rad = xy_circle_rad if xy_circle_rad != None else DEFAULT_XY_RAD
-                circ = Circle((event.xdata, event.ydata), xy_circle_rad, edgecolor='red', fill=False)
+                # default settings if None
+                roi_xy_rad = roi_xy_rad if roi_xy_rad != None else DEFAULT_XY_RAD
+                roi_bounds = roi_bounds if roi_bounds != None else DEFAULT_Z_AROUND_CENTER
+
+                # make new circle
+                circ = Circle((event.xdata, event.ydata), roi_xy_rad, edgecolor='red', fill=False)
+
+                # save bounds information to self
+                self.circle_bounds[self.curr_selection] = roi_bounds
             else:
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
@@ -363,11 +366,17 @@ class RenderDicomSeries:
         elif event.key == "enter":
             self._close()
 
-        # control radius of current circle if a ROI landmark
+        # change radius of current circle if a ROI landmark
         elif event.key == "+":
             self._change_circle_size(1)
         elif event.key == "-":
             self._change_circle_size(-1)
+
+        # change z bounds around true slice
+        elif event.key == "}":
+            self._change_z_bounds(1)
+        elif event.key == "{":
+            self._change_z_bounds(-1)
 
         # else quit
         else:
@@ -380,7 +389,7 @@ class RenderDicomSeries:
         """
         INPUT:
             direction:
-                the direction of change for radius
+                the int direction of change for radius
         EFFECT:
             changes the size of the circle radius
         """
@@ -392,11 +401,30 @@ class RenderDicomSeries:
             return
         # anatomy is not a roi circle to change
         elif REGEX_PARSE.search(self.curr_selection).group() in self.roi_landmarks:
+            # change size
             curr_rad = self.circle_data[self.curr_selection].radius
             self.circle_data[self.curr_selection].set_radius(curr_rad + (direction * 1))
+
+            # rerender
             self.ax.figure.canvas.draw()
         else:
             return
+
+    def _change_z_bounds(self, direction):
+        """
+        INPUT:
+            direction:
+                the int direction of change for z bounds
+        EFFECT:
+            changes the size of the circle radius
+        """
+        # don't change if we have less than zero slices
+        if self.circle_bounds[self.curr_selection] + direction < 0:
+            return
+        else:
+            self.circle_bounds[self.curr_selection] =\
+                self.circle_bounds[self.curr_selection] + direction
+            self._update_image(self.curr_idx)
 
     def _eval_roi_bounds(self, location):
         """
@@ -410,7 +438,7 @@ class RenderDicomSeries:
                 - slice is actuall within bounds
             False otherwise
         """
-        curr_bounds = self.circle_bounds[location][1]
+        curr_bounds = self.circle_bounds[location]
         curr_loc = self.slice_location[location]
 
         # test to see if location is wihtin roi_landmarks
