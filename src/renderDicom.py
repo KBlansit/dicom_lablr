@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # import libraries
+import re
 import sys
 import math
 import dicom
@@ -22,6 +23,8 @@ INITIAL_USR_MSG = "Please select a anatomic landmark"
 CONTRAST_SCALE = 5
 DEFAULT_Z_AROUND_CENTER = 2
 DEFAULT_XY_RAD = 10
+
+REGEX_PARSE = re.compile("([aA-zZ]+)")
 
 # disable key maps
 mpl.rcParams['keymap.fullscreen'] = ''
@@ -236,7 +239,7 @@ class RenderDicomSeries:
                 self.circle_data[self.curr_selection].remove()
 
             # create circle object
-            if self.curr_selection in self.roi_landmarks:
+            if REGEX_PARSE.search(self.curr_selection).group() in self.roi_landmarks:
                 circ = Circle((event.xdata, event.ydata), 60, edgecolor='red', fill=False)
             else:
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
@@ -383,7 +386,7 @@ class RenderDicomSeries:
         curr_loc = self.slice_location[location]
 
         # test to see if location is wihtin roi_landmarks
-        if not location in self.roi_landmarks:
+        if not REGEX_PARSE.search(location).group() in self.roi_landmarks:
             return False
         elif curr_bounds == None:
             return False
