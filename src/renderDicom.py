@@ -147,7 +147,7 @@ class RenderDicomSeries:
     def return_data(self):
         """
         OUTPUT:
-        returns a pandas dataframe of the coordinates
+        a pandas dataframe of the coordinates
         """
         # initialize df
         df = pd.DataFrame(columns = ["x", "y", "img_slice", "location", "rad", "z_len"])
@@ -155,17 +155,26 @@ class RenderDicomSeries:
         # iterate through anatomic types
         for location in self.valid_location_types:
             if self.circle_data[location] is None:
-                x, y, img_slice, rad, z_len = [np.nan] * 5
+                x, y, img_slice, roi_xy_rad, roi_bounds = [[np.nan]] * 5
             else:
                 x, y = self.circle_data[location].center
                 img_slice = self.slice_location[location]
                 x, y, img_slice = [x], [y], [img_slice]
+
+                # for ROI markers
+                if REGEX_PARSE.search(location).group() in self.roi_landmarks:
+                    roi_xy_rad = self.circle_data[location].radius
+                    roi_bounds = self.circle_bounds[location]
+                else:
+                    roi_xy_rad, roi_bounds = ([np.nan], [np.nan])
 
             tmp_df = pd.DataFrame({
                 'x': x,
                 'y': y,
                 'img_slice': img_slice,
                 'location': location,
+                'xy_rad_roi': roi_xy_rad,
+                'roi_bounds': roi_bounds,
             })
             df = df.append(tmp_df)
 
@@ -379,6 +388,11 @@ class RenderDicomSeries:
         elif event.key == "}":
             self._change_z_bounds(1)
         elif event.key == "{":
+            self._change_z_bounds(-1)
+
+        elif event.key == "]":
+            self._change_z_bounds(1)
+        elif event.key == "[":
             self._change_z_bounds(-1)
 
         # else quit
@@ -618,6 +632,6 @@ def plotDicom(dicom_lst, cmd_args, previous_directory=None):
 
     # save data
     out_data, click_df = dicomRenderer.return_data()
-    out_data = out_data[['location', 'x', 'y', 'img_slice']]
+    out_data = out_data[['location', 'x', 'y', 'img_slice', 'xy_rad_roi', 'roi_bounds']]
 
     return out_data, click_df
