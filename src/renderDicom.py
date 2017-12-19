@@ -90,17 +90,30 @@ class RenderDicomSeries:
                 # select curr markere
                 curr_marker = row['location']
 
-                # add circle data
-                circ = Circle((row["x"], row["y"]), 1, edgecolor='red', fill=True)
-                self.circle_data[curr_marker] = circ
-                self.circle_data[curr_marker].PLOTTED = False
-                self.ax.add_patch(circ)
+                # test if we actually have data
+                if not row[["x", "y", "img_slice"]].isnull().sum():
 
-                # add bounding data
-                self.circle_bounds[curr_marker] = row["z_bounds"]
+                    # add circle data
+                    curr_xy = row[["x", "y"]]
+                    curr_radius = row["roi_xy_rad"] if not np.isnan(row["roi_xy_rad"]) else 1
+                    curr_fill = np.isnan(row["roi_xy_rad"])
+                    circ = Circle((curr_xy), curr_radius, edgecolor='red', fill=curr_fill)
 
-                # add slice loc data
-                self.slice_location[curr_marker] = row['img_slice']
+                    self.circle_data[curr_marker] = circ
+                    self.circle_data[curr_marker].PLOTTED = False
+                    self.ax.add_patch(circ)
+
+                    # add bounding data
+                    self.circle_bounds[curr_marker] = row["roi_bounds"]
+
+                    # add slice loc data
+                    self.slice_location[curr_marker] = row['img_slice']
+
+                # else set values to none
+                else:
+                    self.circle_data[curr_marker] = None
+                    self.circle_bounds[curr_marker] = None
+                    self.slice_location[curr_marker] = None
 
         # set all circle_data and slice as None
         else:
@@ -110,7 +123,6 @@ class RenderDicomSeries:
 
             # initialize monitering dataframe
             self.click_df = pd.DataFrame(columns = ['timestamp', 'selection', 'type'])
-
 
         # finish initialiazation
         self._update_image(self.curr_idx)
@@ -147,7 +159,7 @@ class RenderDicomSeries:
     def return_data(self):
         """
         OUTPUT:
-        a pandas dataframe of the coordinates
+            a pandas dataframe of the coordinates
         """
         # initialize df
         df = pd.DataFrame(columns = ["x", "y", "img_slice", "location", "rad", "z_len"])
@@ -173,7 +185,7 @@ class RenderDicomSeries:
                 'y': y,
                 'img_slice': img_slice,
                 'location': location,
-                'xy_rad_roi': roi_xy_rad,
+                'roi_xy_rad': roi_xy_rad,
                 'roi_bounds': roi_bounds,
             })
             df = df.append(tmp_df)
@@ -435,8 +447,11 @@ class RenderDicomSeries:
         EFFECT:
             changes the size of the circle radius
         """
+        # return if nothing is selected
+        if self.curr_selection is None:
+            return
         # don't change if we have less than zero slices
-        if self.circle_bounds[self.curr_selection] + direction < 0:
+        elif self.circle_bounds[self.curr_selection] + direction < 0:
             return
         else:
             self.circle_bounds[self.curr_selection] =\
@@ -632,6 +647,6 @@ def plotDicom(dicom_lst, cmd_args, previous_directory=None):
 
     # save data
     out_data, click_df = dicomRenderer.return_data()
-    out_data = out_data[['location', 'x', 'y', 'img_slice', 'xy_rad_roi', 'roi_bounds']]
+    out_data = out_data[['location', 'x', 'y', 'img_slice', 'roi_xy_rad', 'roi_bounds']]
 
     return out_data, click_df
