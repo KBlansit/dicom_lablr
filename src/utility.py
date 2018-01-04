@@ -22,6 +22,75 @@ def import_anatomic_settings(path):
     except:
         raise IOError("Problem loading: " + str(path))
 
+def read_dicom(path):
+    """
+    INPUTS:
+        path:
+            a string denoting the path
+    OUTPUT:
+        list object of dicom files
+    """
+    # regular expression search for .dcm file
+    if re.search(".dcm$", path) is not None:
+        return dicom.read_file(path, force=True)
+
+def sort_dicom_list(dicom_list):
+    """
+    INPUTS:
+        dicom_list:
+            an unsorted list of dicom objects
+    OUTPUT:
+        sorted list of dicom objects based off of dicom InstanceNumber
+    """
+
+    # test that all elements of the list are dicom objects
+    if not all([True if type(x) == dicom.dataset.FileDataset else False for x in dicom_list]):
+        raise AssertionError("Not all elements are dicom images")
+
+    # pop first element to initialize list
+    rslt_dicom_lst = [dicom_list.pop()]
+    rslt_idx = [rslt_dicom_lst[0].InstanceNumber]
+
+    # loop through list
+    for element in dicom_list:
+        # find index
+        idx = bisect.bisect(rslt_idx, element.InstanceNumber)
+
+        # add to lists
+        rslt_dicom_lst.insert(idx, element)
+        rslt_idx.insert(idx, element.InstanceNumber)
+
+    # testing that rslt_idx is sorted (as it shoulf be!)
+    if not sorted(rslt_idx) == rslt_idx:
+        raise AssertionError("Did not sort correctly!")
+
+    return rslt_dicom_lst
+
+def import_dicom(input_path):
+    """
+    INPUT:
+        input_path:
+            input dicom path
+    OUTPUT:
+        sorted dicom object
+    """
+
+    # store files and append path
+    dicom_files = os.listdir(input_path)
+    dicom_files = [input_path + "/" + x for x in dicom_files]
+
+    # read dicom files
+    dicom_lst = [read_dicom(x) for x in dicom_files]
+    dicom_lst = [x for x in dicom_lst if x is not None]
+
+    # use study ID from 1st case
+    study_id = os.path.relpath(input_path)
+
+    # sort list
+    dicom_obj = sort_dicom_list(dicom_lst)
+
+    return dicom_obj
+
 def save_output(input_path, case_id, out_data, click_df, cmd_args, replace):
     """
     INPUT:
