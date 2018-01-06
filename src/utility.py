@@ -89,9 +89,6 @@ def import_dicom(input_path):
     dicom_lst = [read_dicom(x) for x in dicom_files]
     dicom_lst = [x for x in dicom_lst if x is not None]
 
-    # use study ID from 1st case
-    study_id = os.path.relpath(input_path)
-
     # sort list
     dicom_obj = sort_dicom_list(dicom_lst)
 

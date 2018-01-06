@@ -76,6 +76,9 @@ def main():
 
     # import dicom
     dicom_obj = import_dicom(input_path)
+    
+    # get study id
+    study_id = os.path.relpath(input_path)
 
     # render and return data, then save output
     if system_state == "NEW_FILE":
