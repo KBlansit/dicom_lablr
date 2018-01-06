@@ -17,47 +17,25 @@ HOUNSFIELD_2_MIN = 200
 HOUNSFIELD_3_MIN = 300
 HOUNSFIELD_4_MIN = 400
 
-def get_hounsfield(roi_mtx):
+def rescale_dicom(curr_dicom):
     """
     INPUT:
-        roi_mtx:
-            the roi matrix
+        curr_dicom
     OUTPUT:
-        the mapped peak houndsfield (1, 2, 3, 4) or None if below threshold
+        the transformed pixel array to a HU scale
     """
+    # get image
+    img = curr_dicom.pixel_array
 
-    # get maximum value
-    roi_max = roi_mtx.max()
+    # get intercept and slop
+    intercept = curr_dicom.RescaleIntercept
+    slope = curr_dicom.RescaleSlope
 
-    if roi_max < HOUNSFIELD_1_MIN:
-        return None
-    elif roi_max >= HOUNSFIELD_1_MIN and roi_max < HOUNSFIELD_2_MIN:
-        return 1
-    elif roi_max >= HOUNSFIELD_2_MIN and roi_max < HOUNSFIELD_3_MIN:
-        return 2
-    elif roi_max >= HOUNSFIELD_3_MIN and roi_max < HOUNSFIELD_4_MIN:
-        return 3
-    elif roi_max <= HOUNSFIELD_4_MIN:
-        return 4
+    # apply transform
+    img = (slope * img) + intercept
 
-def calculate_slice_area(curr_dicom, vld_roi_indx):
-    """
-    INPUT:
-        curr_dicom:
-            the current dicom object
-        vld_roi_indx:
-            the valid indicies for the ROI
-    OUTPUT:
-        the area (in mm) for the roi that meets minimum houndsfield threshold
-    """
-    # get size of pixels
-    px_space = np.prod(curr_dicom.pixel_spacing)
-
-    # get area of the ROI that is above the min houndsfield threshold
-    pxls = (curr_dicom.pixel_array[vld_roi_indx] >= HOUNSFIELD_1_MIN).sum()
-
-    # return area
-    return px_space * pxls
+    # return
+    return img
 
 def subset_dicom_lst(dicom_lst, curr_slice, bounds):
     """
@@ -79,61 +57,104 @@ def subset_dicom_lst(dicom_lst, curr_slice, bounds):
     # return
     return dicom_lst[lower_lim: upper_lim]
 
-def determine_radius(roi_center, dim):
+def calculate_indicies(roi_center, radius, dim):
     """
     INPUT:
         roi_center:
             the YX location of the circle center
+        radius:
+            the radius of the roi
         dim:
             tuple of the matrix shape
     OUTPUT:
-        indicies that are within the radius
+        tuple of indicies that are within the radius
     """
     # get indicies for matrix calculations
-    bins = np.indices(dicom_lst[0].cols, dicom_lst[0].rows)
+    bins = np.indices(dim)
     pos = np.stack(bins, axis=-1).reshape([-1, 2])
 
     # determine indicies that are within radius
     distances = norm(pos - roi_center, axis=1)
 
     # return valid incicies
-    return pos[np.around(distances) <= curr_roi.roi_xy_rad]
+    vld_indx = pos[np.around(distances) <= radius]
 
-def calculate_calcium(dicom_lst, roi_bounds, roi_center, roi_slice, roi_radius):
+    # return tuple of indicies
+    return vld_indx[:, 0], vld_indx[:, 1]
+
+def calculate_slice_area(curr_dicom, vld_roi_indx):
+    """
+    INPUT:
+        curr_dicom:
+            the current dicom object
+        vld_roi_indx:
+            the valid indicies for the ROI
+    OUTPUT:
+        the area (in mm) for the roi that meets minimum houndsfield threshold
+    """
+    # get size of pixels
+    px_space = np.prod(curr_dicom.PixelSpacing)
+
+    # get area of the ROI that is above the min houndsfield threshold
+    pxls = (rescale_dicom(curr_dicom)[vld_roi_indx] >= HOUNSFIELD_1_MIN).sum()
+
+    # return area
+    return px_space * pxls
+
+def calculate_calcium_volume(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):
     """
     INPUT:
         dicom_lst:
-            list of dicom files
-        roi_bounds:
-            the roi boundary
-        roi_center:
-            the xy location for the center of the circle
+            the list of dicom objects
+        vld_roi_indx:
+            the valid indicies for the ROI
         roi_slice:
-            the slice that the roi center is placed
-        roi_radius:
-            the radius for the roi circle
+            the slice that the roi is centered upon
+        roi_bounds:
+            the extend of the slices within the roi
     OUTPUT:
-        tuple:
-            [0]: total calcium volume
-            [1]: the calculated calcium score
+        the total volume (in mm^3) of calcium
     """
     # get subset of dicom files
-    curr_dicom_lst = subset_dicom_lst(dicom_lst, roi_bounds)
-
-    # get indicies
-    vld_roi_indx = determine_radius(roi_center, dicom_lst.pixel_array.shape)
-
-    # get roi matricies
-    roi_mtx_lst = [x.pixel_array[vld_roi_indx] for x in curr_dicom_lst]
-
-    # get max attenuation scaler
-    hounsfield_scaler = get_hounsfield(np.stack(roi_mtx_lst))
+    curr_dicom_lst = subset_dicom_lst(dicom_lst, roi_slice, roi_bounds)
 
     # get area of slices above HOUNSFIELD_1_MIN
-    total_area = np.array([calculate_slice_area(x) for x in curr_dicom_lst])
+    total_area = np.array([calculate_slice_area(x, vld_roi_indx) for x in curr_dicom_lst])
 
     # get volume
-    total_volume = np.stack(total_area, axis=1) * curr_dicom_lst[0].slice_spacing
+    total_volume = total_area.sum() * curr_dicom_lst[0].SliceThickness
+    import pdb; pdb.set_trace()
 
-    # return total multiplied by scaler
-    return [total_volume, total_volume * hounsfield_scaler]
+def get_max_hounsfield(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):
+    """
+    INPUT:
+        dicom_lst:
+            the list of dicom objects
+        vld_roi_indx:
+            the valid indicies for the ROI
+        roi_slice:
+            the slice that the roi is centered upon
+        roi_bounds:
+            the extend of the slices within the roi
+    OUTPUT:
+        the mapped peak houndsfield (1, 2, 3, 4) or None if below threshold
+    """
+    # get subset of dicom files
+    curr_dicom_lst = subset_dicom_lst(dicom_lst, roi_slice, roi_bounds)
+
+    # get roi matricies
+    roi_mtx = np.stack([rescale_dicom(x) for x in curr_dicom_lst])
+
+    # get maximum value
+    roi_max = roi_mtx.max()
+
+    if roi_max < HOUNSFIELD_1_MIN:
+        return None
+    elif roi_max >= HOUNSFIELD_1_MIN and roi_max < HOUNSFIELD_2_MIN:
+        return 1
+    elif roi_max >= HOUNSFIELD_2_MIN and roi_max < HOUNSFIELD_3_MIN:
+        return 2
+    elif roi_max >= HOUNSFIELD_3_MIN and roi_max < HOUNSFIELD_4_MIN:
+        return 3
+    elif roi_max <= HOUNSFIELD_4_MIN:
+        return 4
