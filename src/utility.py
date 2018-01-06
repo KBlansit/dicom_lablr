@@ -1,11 +1,17 @@
 #!/usr/bin/env python
 
 # import libraries
+import re
 import os
 import yaml
+import dicom
+import bisect
 import shutil
 
+
 import pandas as pd
+
+REGEX_PARSE = re.compile("([aA-zZ]+)")
 
 def import_anatomic_settings(path):
     """

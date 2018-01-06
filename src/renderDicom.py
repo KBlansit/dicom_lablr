@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 # import libraries
-import re
 import sys
 import math
 import dicom
@@ -16,7 +15,8 @@ from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor
 
 # import user fefined libraries
-from src.utility import import_anatomic_settings
+from src.utility import import_anatomic_settings, REGEX_PARSE
+from src.process_calcium import calculate_calcium
 
 # global messages
 INITIAL_USR_MSG = "Please select a anatomic landmark"
@@ -24,8 +24,6 @@ CONTRAST_SCALE = 5
 
 DEFAULT_Z_AROUND_CENTER = 2
 DEFAULT_XY_RAD = 10
-
-REGEX_PARSE = re.compile("([aA-zZ]+)")
 
 # disable key maps
 mpl.rcParams['keymap.fullscreen'] = ''
@@ -53,10 +51,18 @@ class RenderDicomSeries:
         else:
             raise IOError("settings file {} doesn't have anatomic_landmarks".format(settings_path))
 
+        # set roi_landmarks
         if "roi_landmarks" in settings:
-            self.roi_landmarks = settings["roi_landmarks"]
+            # filter landmarks
+            roi_lst = [REGEX_PARSE.search(x) for x in self.locations_markers.values()]
+            roi_lst = [x.group() for x in filter(None, roi_lst)]
+            roi_lst = [x for x in roi_lst if x in settings["roi_landmarks"]]
+
+            # set dict
+            self.roi_measurements = dict(zip(roi_lst, len(roi_lst) * [None]))
+
         else:
-            self.roi_landmarks = []
+            self.roi_measurements = {}
 
         self.valid_location_types = [v for k,v in self.locations_markers.items()]
 
@@ -150,7 +156,8 @@ class RenderDicomSeries:
 
     def disconnect(self):
         """
-        disconnect
+        EFFECT:
+            disconnect
         """
         self.ax.figure.canvas.mpl_disconnect('key_press_event')
         self.ax.figure.canvas.mpl_disconnect('button_press_event')
@@ -174,7 +181,7 @@ class RenderDicomSeries:
                 x, y, img_slice = [x], [y], [img_slice]
 
                 # for ROI markers
-                if REGEX_PARSE.search(location).group() in self.roi_landmarks:
+                if REGEX_PARSE.search(location).group() in self.roi_measurements.keys():
                     roi_xy_rad = self.circle_data[location].radius
                     roi_bounds = self.circle_bounds[location]
                 else:
@@ -227,14 +234,39 @@ class RenderDicomSeries:
         # update view
         self.ax.figure.canvas.draw()
 
+    def _update_attenuation(self):
+        """
+        EFFECT:
+            updates attenuation measurements
+        """
+        # do only if we are currently on a valid data type
+        if self.curr_selection in self.roi_measurements.keys():
+            # get relevant location informaiton
+            roi_bounds = self.circle_bounds[self.curr_selection]
+            roi_center = self.circle_data[self.curr_selection].center
+            roi_slice = self.slice_location[self.curr_selection]
+            roi_rad = self.circle_data[self.curr_selection].radius
+
+            # calculate calcium
+            curr_calcium = calculate_calcium(
+                self.dicom_lst,
+                roi_bounds,
+                roi_center,
+                roi_slice,
+                roi_rad
+            )
+
+            # reassign measurement
+            self.roi_measurements[self.curr_selection] = curr_calcium
+
     def _on_click(self, event):
         """
-            INPUT:
-                event:
-                    the event object from matplotlib
-            EFFECT:
-                if correct button is pressed, start scrolling
-                if an anatomical landmark is selected, set location
+        INPUT:
+            event:
+                the event object from matplotlib
+        EFFECT:
+            if correct button is pressed, start scrolling
+            if an anatomical landmark is selected, set location
         """
         if event.button == 3:
             # update scrolling
@@ -265,7 +297,7 @@ class RenderDicomSeries:
                 self.circle_data[self.curr_selection].remove()
 
             # create circle object
-            if REGEX_PARSE.search(self.curr_selection).group() in self.roi_landmarks:
+            if REGEX_PARSE.search(self.curr_selection).group() in self.roi_measurements.keys():
                 # default settings if None
                 roi_xy_rad = roi_xy_rad if roi_xy_rad != None else DEFAULT_XY_RAD
                 roi_bounds = roi_bounds if roi_bounds != None else DEFAULT_Z_AROUND_CENTER
@@ -275,6 +307,9 @@ class RenderDicomSeries:
 
                 # save bounds information to self
                 self.circle_bounds[self.curr_selection] = roi_bounds
+
+                # update measurements
+                self._update_attenuation()
             else:
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
@@ -324,11 +359,11 @@ class RenderDicomSeries:
 
     def _on_release(self, event):
         """
-            INPUT:
-                event:
-                    the event object from matplotlib
-            EFFECT:
-                reset scrolling
+        INPUT:
+            event:
+                the event object from matplotlib
+        EFFECT:
+            reset scrolling
         """
         # reset values
         self.scrolling = False
@@ -429,10 +464,13 @@ class RenderDicomSeries:
         elif self.slice_location[self.curr_selection] == None:
             return
         # anatomy is not a roi circle to change
-        elif REGEX_PARSE.search(self.curr_selection).group() in self.roi_landmarks:
+        elif REGEX_PARSE.search(self.curr_selection).group() in self.roi_measurements:
             # change size
             curr_rad = self.circle_data[self.curr_selection].radius
             self.circle_data[self.curr_selection].set_radius(curr_rad + (direction * 1))
+
+            # update measurements
+            self._update_attenuation()
 
             # rerender
             self.ax.figure.canvas.draw()
@@ -456,7 +494,12 @@ class RenderDicomSeries:
         else:
             self.circle_bounds[self.curr_selection] =\
                 self.circle_bounds[self.curr_selection] + direction
+
+            # update image
             self._update_image(self.curr_idx)
+
+            # update measurements
+            self._update_attenuation
 
     def _eval_roi_bounds(self, location):
         """
@@ -474,7 +517,7 @@ class RenderDicomSeries:
         curr_loc = self.slice_location[location]
 
         # test to see if location is wihtin roi_landmarks
-        if not REGEX_PARSE.search(location).group() in self.roi_landmarks:
+        if not REGEX_PARSE.search(location).group() in self.roi_measurements:
             return False
         elif curr_bounds == None:
             return False
@@ -495,10 +538,20 @@ class RenderDicomSeries:
             # determine if slice has already been set
             if self.slice_location[self.curr_selection] is not None:
                 slice_loc = "slice " + str(self.slice_location[self.curr_selection])
+                # determine to print information about calcium score
+                if self.curr_selection in self.roi_measurements.keys():
+                    roi_measurement = self.roi_measurement[self.curr_selection]
             else:
                 slice_loc = " - "
+                # determine to print information about calcium score
+                if self.curr_selection in self.roi_measurements.keys():
+                    roi_measurement = " - "
 
             usr_msg = "Current selection: " + self.curr_selection + "[" + slice_loc + "]"
+
+            # determine to print information about calcium score
+            if self.curr_selection in self.roi_measurements.keys():
+                usr_msg = usr_msg + " Calcium Score: " + roi_measurement
 
         # concatenate messges
         usr_msg = "\r" + "Slide: %d; " %  self.curr_idx + usr_msg

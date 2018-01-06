@@ -5,13 +5,12 @@ import os
 import re
 import yaml
 import dicom
-import bisect
 import argparse
 
 from matplotlib import pyplot
 
 # import user defined functions
-from src.utility import save_output
+from src.utility import save_output, import_dicom
 from src.renderDicom import plotDicom
 
 # main
