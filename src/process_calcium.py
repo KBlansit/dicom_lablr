@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from numpy.linalg import norm
+from scipy.ndimage import label
 
 from src.utility import import_dicom, REGEX_PARSE
 
@@ -57,7 +58,7 @@ def subset_dicom_lst(dicom_lst, curr_slice, bounds):
     # return
     return dicom_lst[lower_lim: upper_lim]
 
-def calculate_indicies(roi_center, radius, dim):
+def get_radius_indicies(roi_center, radius, dim):
     """
     INPUT:
         roi_center:
@@ -74,13 +75,71 @@ def calculate_indicies(roi_center, radius, dim):
     pos = np.stack(bins, axis=-1).reshape([-1, 2])
 
     # determine indicies that are within radius
-    distances = norm(pos - roi_center, axis=1)
+    distances = norm(pos - np.around(roi_center), axis=1)
 
     # return valid incicies
     vld_indx = pos[np.around(distances) <= radius]
 
     # return tuple of indicies
     return vld_indx[:, 0], vld_indx[:, 1]
+
+def get_roi_indicies(roi_center, roi_rad, roi_bounds, roi_slice, dicom_lst):
+    """
+    INPUT:
+        roi_center:
+            the YX location of the circle center
+        roi_rad:
+            the radius of the roi
+        roi_bounds:
+            the bounds of the roi
+        roi_slice:
+            the slice where the roi is centered
+        dicom_lst:
+            the list of dicomes
+    OUTPUT:
+        the Y, X, Slice of the coordinates in the ROI
+    """
+    # get dimentions
+    dicom_dim = dicom_lst[0].pixel_array.shape
+
+    # get XY indicies
+    xy_indx = get_radius_indicies(roi_center, roi_rad, dicom_dim)
+    xy_indx_mtx = np.array(xy_indx).T
+
+    # make range
+    min_slice = int(max(0, roi_slice - roi_bounds))
+    max_slice = int(min(roi_slice + roi_bounds, len(dicom_lst)))
+    rng = range(min_slice, max_slice + 1)
+
+    # make list of appended Y indx
+    xyz_indx_lst = [np.insert(xy_indx_mtx, 2, x, axis=-1) for x in rng]
+
+    return np.concatenate(xyz_indx_lst)
+
+
+
+
+
+
+
+
+
+
+
+def contigous_mass_sizes(mtx):
+    """
+    INPUT:
+        mtx:
+            a 3D matrix
+    OUTPUT:
+        a list of sizes of contigous masses
+    """
+    # determine mass size
+    lbl_mtx, n_features = label(mtx)
+    mass_size_lst = [len(lbl_mtx[lbl_mtx == x]) for x in range(n_features)]
+
+    # return
+    return mass_size_lst
 
 def calculate_slice_area(curr_dicom, vld_roi_indx):
     """
@@ -158,3 +217,15 @@ def get_max_hounsfield(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):
         return 3
     elif roi_max <= HOUNSFIELD_4_MIN:
         return 4
+
+def get_roi_score(dicom_lst, roi_center, roi_rad, roi_bounds, roi_slice):
+    # HACK
+
+
+    # get dimentions of dicom
+    dicom_dim = dicom_lst[0].pixel_array.shape
+
+    # get indicies
+    indxs = calculate_radius_indicies(roi_center, roi_rad, dicom_dim)
+
+    import pdb; pdb.set_trace()

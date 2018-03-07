@@ -16,8 +16,7 @@ from matplotlib.widgets import Cursor
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
-from src.process_calcium import calculate_indicies, calculate_calcium_volume,\
-    get_max_hounsfield
+from src.process_calcium import get_roi_indicies
 
 # global messages
 INITIAL_USR_MSG = "Please select a anatomic landmark"
@@ -255,26 +254,76 @@ class RenderDicomSeries:
             updates attenuation measurements
         """
         # do only if we are currently on a valid data type
-        if self.curr_selection in self.roi_indicies.keys():
-            # get relevant location informaiton
-            roi_center = self.circle_data[self.curr_selection].center
-            roi_rad = self.circle_data[self.curr_selection].radius
-            mtx_shape = self.dicom_lst[0].pixel_array.shape
-            roi_bounds = self.circle_bounds[self.curr_selection]
-            roi_slice = self.slice_location[self.curr_selection]
+        roi_keys = self.roi_indicies.keys()
+        if self.curr_selection in roi_keys:
 
+            # get current roi
+            curr_roi = REGEX_PARSE.findall(self.curr_selection)[0]
+
+            # HACK
+            curr_roi = "LCX"
+
+
+            # get all keys for current roi
+            curr_roi_keys = [x for x in roi_keys if x.startswith(curr_roi)]
+
+            # get unique indicies
+            roi_indx_lst = []
+            for c_key in curr_roi_keys:
+
+                # determine if we have circle
+                if self.circle_data[c_key]:
+
+                    # get cirlce data
+                    roi_center = self.circle_data[c_key].center
+                    if type(roi_center) == pd.Series:
+                        roi_center = tuple(roi_center.tolist())
+
+                    roi_rad = self.circle_data[c_key].radius
+                    roi_bounds = self.circle_bounds[c_key]
+                    roi_slice = self.slice_location[c_key]
+
+                    # get indicies
+                    xyz_indx_mtx = get_roi_indicies(roi_center, roi_rad, roi_bounds, roi_slice, self.dicom_lst)
+
+                    # append to list
+                    roi_indx_lst.append(xyz_indx_mtx)
+
+            # get lists for each, unlist, and find unique coords
+            roi_indx_lst = [x.tolist() for x in roi_indx_lst]
+            roi_indx_lst = [x for y in roi_indx_lst for x in y]
+            roi_indx_lst = [tuple(x) for x in roi_indx_lst]
+            roi_indx_lst = list(set(roi_indx_lst))
+
+            
+
+            import pdb; pdb.set_trace()
+            roi_dict = {}
+
+
+
+
+            # get list of rois
+
+
+
+
+            #mtx_shape = self.dicom_lst[0].pixel_array.shape
+
+            #import pdb; pdb.set_trace()
             # update indicies
-            indxs = calculate_indicies(roi_center, roi_rad, mtx_shape)
-            self.roi_indicies[self.curr_selection] = indxs
 
-            # calculate calcium volume
-            ca_vol = calculate_calcium_volume(self.dicom_lst, indxs, roi_slice, roi_bounds)
-            mx_hounds = get_max_hounsfield(self.dicom_lst, indxs, roi_slice, roi_bounds)
 
-            ca_values = [ca_vol, ca_vol * mx_hounds]
 
-            # reassign indicies and measurements
-            self.roi_measurements[REGEX_PARSE.search(self.curr_selection).group()] = ca_values
+
+        #indxs = calculate_indicies(roi_center, roi_rad, mtx_shape)
+        #self.roi_indicies[self.curr_selection] = indxs
+        ## calculate calcium volume
+        #ca_vol = calculate_calcium_volume(self.dicom_lst, indxs, roi_slice, roi_bounds)
+        #mx_hounds = get_max_hounsfield(self.dicom_lst, indxs, roi_slice, roi_bounds)
+        #ca_values = [ca_vol, ca_vol * mx_hounds]
+        ## reassign indicies and measurements
+        #self.roi_measurements[REGEX_PARSE.search(self.curr_selection).group()] = ca_values
 
     def _on_click(self, event):
         """
@@ -539,7 +588,7 @@ class RenderDicomSeries:
         # test to see if location is wihtin roi_landmarks
         if not REGEX_PARSE.search(location).group() in self.roi_measurements:
             return False
-        elif curr_bounds == None:
+        elif curr_bounds == None or curr_loc == None:
             return False
         elif curr_loc - curr_bounds <= self.curr_idx <= curr_loc + curr_bounds:
             return True
