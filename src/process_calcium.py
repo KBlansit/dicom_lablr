@@ -15,6 +15,8 @@ HOUNSFIELD_2_MIN = 200
 HOUNSFIELD_3_MIN = 300
 HOUNSFIELD_4_MIN = 400
 
+MIN_AGASTON_AREA = 1
+
 def rescale_dicom(curr_dicom):
     """
     INPUT:
@@ -54,8 +56,52 @@ def get_max_hounsfield(roi_mtx):
         return 2
     elif roi_max >= HOUNSFIELD_3_MIN and roi_max < HOUNSFIELD_4_MIN:
         return 3
-    elif roi_max <= HOUNSFIELD_4_MIN:
+    elif roi_max >= HOUNSFIELD_4_MIN:
         return 4
+
+def get_agatston_score(mskd_mtx, pixel_spacing):
+    """
+    INPUTS:
+        mskd_mtx:
+            masked matrix where values below 130 supressed
+        pixel_spacing:
+            the product of pixel spacing from dicom
+    OUTPUT:
+        the calculated total calcium
+    """
+
+    # initialize total_calcium
+    total_calcium = 0
+
+    # get calcium score
+    for curr_slice_indx in range(mskd_mtx.shape[-1]):
+        # get current slice
+        curr_slice = mskd_mtx[:, :, curr_slice_indx]
+
+        # get connected components for the slice
+        lbl_mtx, n_features = label(curr_slice)
+
+        # for each connected component
+        for curr_feature in range(1, n_features + 1):
+            # get number of pixels
+            pxls = np.sum(lbl_mtx == curr_feature)
+
+            # get area
+            area = pxls * pixel_spacing
+
+            # ignore if below 1 mm^2
+            if area > 1:
+                # get indicies of curr feature
+                lbl_indx = np.where(lbl_mtx == curr_feature)
+
+                # get max houndsfield
+                mx_hu = get_max_hounsfield(mskd_mtx[lbl_indx])
+
+                # add to total calcium
+                total_calcium = total_calcium + (area * mx_hu)
+
+    # return
+    return total_calcium
 
 def get_calcium_score(roi_indicies, dicom_lst):
     """
@@ -108,57 +154,19 @@ def get_calcium_score(roi_indicies, dicom_lst):
     # move to lists
     zero_msk_indx = not_in_roi_mtx.T.tolist()
 
-    # blank out indicies that are not in valid
+    # mask indicies that are not in valid
     pxl_mtx[zero_msk_indx] = 0
 
-    # get max hounsfield
-    get_max_hounsfield(pxl_mtx)
+    # mask below min houndsfield threshold
+    pxl_mtx[np.where(pxl_mtx < HOUNSFIELD_1_MIN)] = 0
 
+    # get pixel spacing
+    px_spacing = np.prod(dicom_lst[0].PixelSpacing)
 
+    # get calcium score
+    ca_score = get_agatston_score(pxl_mtx.copy(), px_spacing)
 
-
-
-
-
-
-
-
-
-
-
-def contigous_mass_sizes(mtx):
-    """
-    INPUT:
-        mtx:
-            a 3D matrix
-    OUTPUT:
-        a list of sizes of contigous masses
-    """
-    # determine mass size
-    lbl_mtx, n_features = label(mtx)
-    mass_size_lst = [len(lbl_mtx[lbl_mtx == x]) for x in range(n_features)]
-
-    # return
-    return mass_size_lst
-
-def calculate_slice_area(curr_dicom, vld_roi_indx):
-    """
-    INPUT:
-        curr_dicom:
-            the current dicom object
-        vld_roi_indx:
-            the valid indicies for the ROI
-    OUTPUT:
-        the area (in mm) for the roi that meets minimum houndsfield threshold
-    """
-    # get size of pixels
-    px_space = np.prod(curr_dicom.PixelSpacing)
-
-    # get area of the ROI that is above the min houndsfield threshold
-    pxls = (rescale_dicom(curr_dicom)[vld_roi_indx] >= HOUNSFIELD_1_MIN).sum()
-
-    # return area
-    return px_space * pxls
+    print(ca_score)
 
 def calculate_calcium_volume(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):
     """
@@ -182,16 +190,4 @@ def calculate_calcium_volume(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):
 
     # get volume
     total_volume = total_area.sum() * curr_dicom_lst[0].SliceThickness
-    import pdb; pdb.set_trace()
-
-def get_roi_score(dicom_lst, roi_center, roi_rad, roi_bounds, roi_slice):
-    # HACK
-
-
-    # get dimentions of dicom
-    dicom_dim = dicom_lst[0].pixel_array.shape
-
-    # get indicies
-    indxs = calculate_radius_indicies(roi_center, roi_rad, dicom_dim)
-
     import pdb; pdb.set_trace()
