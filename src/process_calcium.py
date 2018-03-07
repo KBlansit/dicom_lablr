@@ -35,26 +35,14 @@ def rescale_dicom(curr_dicom):
     # return
     return img
 
-def get_max_hounsfield(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):
+def get_max_hounsfield(roi_mtx):
     """
     INPUT:
-        dicom_lst:
-            the list of dicom objects
-        vld_roi_indx:
-            the valid indicies for the ROI
-        roi_slice:
-            the slice that the roi is centered upon
-        roi_bounds:
-            the extend of the slices within the roi
+        roi_mtx:
+            the masked out non-ROI matrix
     OUTPUT:
         the mapped peak houndsfield (1, 2, 3, 4) or None if below threshold
     """
-    # get subset of dicom files
-    curr_dicom_lst = subset_dicom_lst(dicom_lst, roi_slice, roi_bounds)
-
-    # get roi matricies
-    roi_mtx = np.stack([rescale_dicom(x) for x in curr_dicom_lst])
-
     # get maximum value
     roi_max = roi_mtx.max()
 
@@ -120,11 +108,12 @@ def get_calcium_score(roi_indicies, dicom_lst):
     # move to lists
     zero_msk_indx = not_in_roi_mtx.T.tolist()
 
-    # zero out pxl_mtx
+    # blank out indicies that are not in valid
     pxl_mtx[zero_msk_indx] = 0
 
-    # blank out indicies that are not in valid
-    import pdb; pdb.set_trace()
+    # get max hounsfield
+    get_max_hounsfield(pxl_mtx)
+
 
 
 

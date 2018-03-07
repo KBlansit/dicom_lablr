@@ -285,10 +285,10 @@ class RenderDicomSeries:
                     roi_slice = self.slice_location[c_key]
 
                     # get indicies
-                    xyz_indx_mtx = get_roi_indicies(roi_center, roi_rad, roi_bounds, roi_slice, self.dicom_lst)
-
-                    # append to list
-                    roi_indx_lst.append(xyz_indx_mtx)
+                    if not None in roi_center:
+                        # append to list
+                        xyz_indx_mtx = get_roi_indicies(roi_center, roi_rad, roi_bounds, roi_slice, self.dicom_lst)
+                        roi_indx_lst.append(xyz_indx_mtx)
 
             # get lists for each, unlist, and find unique coords
             roi_indx_lst = [x.tolist() for x in roi_indx_lst]
@@ -296,8 +296,10 @@ class RenderDicomSeries:
             roi_indx_lst = [tuple(x) for x in roi_indx_lst]
             roi_indx_lst = list(set(roi_indx_lst))
 
-            # get calcium score
-            get_calcium_score(roi_indx_lst, self.dicom_lst)
+            # test if we have valid indicies
+            if len(roi_indx_lst):
+                # get calcium score
+                get_calcium_score(roi_indx_lst, self.dicom_lst)
 
 
 
