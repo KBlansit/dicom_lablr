@@ -16,7 +16,8 @@ from matplotlib.widgets import Cursor
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
-from src.process_calcium import get_roi_indicies
+from src.process_calcium import get_calcium_score
+from src.process_roi import get_roi_indicies
 
 # global messages
 INITIAL_USR_MSG = "Please select a anatomic landmark"
@@ -295,10 +296,8 @@ class RenderDicomSeries:
             roi_indx_lst = [tuple(x) for x in roi_indx_lst]
             roi_indx_lst = list(set(roi_indx_lst))
 
-            
-
-            import pdb; pdb.set_trace()
-            roi_dict = {}
+            # get calcium score
+            get_calcium_score(roi_indx_lst, self.dicom_lst)
 
 
 
