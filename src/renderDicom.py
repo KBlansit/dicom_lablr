@@ -261,9 +261,6 @@ class RenderDicomSeries:
             # get current roi
             curr_roi = REGEX_PARSE.findall(self.curr_selection)[0]
 
-            #HACK
-            curr_roi = "LAD"
-
             # get all keys for current roi
             curr_roi_keys = [x for x in roi_keys if x.startswith(curr_roi)]
 
