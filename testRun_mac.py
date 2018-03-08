@@ -5,8 +5,8 @@ import os
 
 # define parts of program call
 base_call = 'main.py'
-path_call = '-p data/ex2'
-settings_call = '-s settings/settings.yaml'
+path_call = '-p data/99752834'
+settings_call = '-s settings/ex_settings.yaml'
 user_call = '-u KevinTst'
 
 # make into a list

@@ -12,7 +12,7 @@ import matplotlib as mpl
 
 from matplotlib import pyplot, cm
 from matplotlib.patches import Circle
-from matplotlib.widgets import Cursor
+from matplotlib.widgets import Cursor, LassoSelector
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
@@ -152,10 +152,20 @@ class RenderDicomSeries:
         sys.stdout.write("Slide 0; " + INITIAL_USR_MSG)
         sys.stdout.flush()
 
+    def _lasso(self, values):
+        """
+        """
+        roi_keys = self.roi_indicies.keys()
+        if self.curr_selection in roi_keys:
+            print(values)
+
     def connect(self):
         """
         connection hooks
         """
+        # lasso select
+        self.lasso = LassoSelector(self.ax, self._lasso)
+
         # keyboard press
         self.cid_keyboard_press = self.ax.figure.canvas.mpl_connect(
             'key_press_event', self._on_key_press)
