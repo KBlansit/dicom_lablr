@@ -10,9 +10,9 @@ import numpy as np
 import pandas as pd
 import matplotlib as mpl
 
-from matplotlib import pyplot, cm
+from matplotlib import pyplot, cm, path, patches
 from matplotlib.patches import Circle
-from matplotlib.widgets import Cursor, LassoSelector
+from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
@@ -100,7 +100,8 @@ class RenderDicomSeries:
         if previous_path is not None:
             # initialize circ data, bounds, and slice loc dicts
             self.circle_data = {}
-            self.circle_bounds = {}
+            self.roi_data = {}
+            self.roi_bounds = {}
             self.slice_location = {}
 
             data_df = pd.read_csv(previous_path + "/data.csv", sep = ",")
@@ -125,7 +126,7 @@ class RenderDicomSeries:
                     self.ax.add_patch(circ)
 
                     # add bounding data
-                    self.circle_bounds[curr_marker] = row["roi_bounds"]
+                    self.roi_bounds[curr_marker] = row["roi_bounds"]
 
                     # add slice loc data
                     self.slice_location[curr_marker] = row['img_slice']
@@ -133,13 +134,14 @@ class RenderDicomSeries:
                 # else set values to none
                 else:
                     self.circle_data[curr_marker] = None
-                    self.circle_bounds[curr_marker] = None
+                    self.roi_bounds[curr_marker] = None
                     self.slice_location[curr_marker] = None
 
-        # set all circle_data and slice as None
+        # set all markers to none
         else:
             self.circle_data = {x: None for x in self.valid_location_types}
-            self.circle_bounds = {x: None for x in self.valid_location_types}
+            self.roi_data = {x:None for x in roi_lst}
+            self.roi_bounds = {x: None for x in self.valid_location_types}
             self.slice_location = {x: None for x in self.valid_location_types}
 
             # initialize monitering dataframe
@@ -152,19 +154,14 @@ class RenderDicomSeries:
         sys.stdout.write("Slide 0; " + INITIAL_USR_MSG)
         sys.stdout.flush()
 
-    def _lasso(self, values):
-        """
-        """
-        roi_keys = self.roi_indicies.keys()
-        if self.curr_selection in roi_keys:
-            print(values)
+        # initialize lasso selector
+        self.curr_lasso = LassoSelector(self.ax, self._lasso)
+        self.curr_lasso.active = False
 
     def connect(self):
         """
         connection hooks
         """
-        # lasso select
-        self.lasso = LassoSelector(self.ax, self._lasso)
 
         # keyboard press
         self.cid_keyboard_press = self.ax.figure.canvas.mpl_connect(
@@ -208,7 +205,7 @@ class RenderDicomSeries:
                 # for ROI markers
                 if location in self.roi_indicies:
                     roi_xy_rad = self.circle_data[location].radius
-                    roi_bounds = self.circle_bounds[location]
+                    roi_bounds = self.roi_bounds[location]
                 else:
                     roi_xy_rad, roi_bounds = ([np.nan], [np.nan])
 
@@ -246,15 +243,23 @@ class RenderDicomSeries:
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
             if self.slice_location[x] == new_idx:
-                self.circle_data[x].set_visible(True)
+                if x in self.roi_indicies.keys():
+                    self.roi_data[x].set_visible(True)
+                else:
+                    self.circle_data[x].set_visible(True)
             elif self._eval_roi_bounds(x):
-                self.circle_data[x].set_visible(True)
+                if x in self.roi_indicies.keys():
+                    self.roi_data[x].set_visible(True)
+                else:
+                    self.circle_data[x].set_visible(True)
             elif self.slice_location[x] == None:
                 pass
-            elif self.circle_data[x] is not None:
-                self.circle_data[x].set_visible(False)
-            elif self._eval_roi_bounds(x):
-                self.circle_data[x].set_visible(True)
+            elif x in self.roi_indicies.keys():
+                if self.roi_data[x] is not None:
+                    self.roi_data[x].set_visible(False)
+            else:
+                if self.circle_data[x] is not None:
+                    self.circle_data[x].set_visible(False)
 
         # update view
         self.ax.figure.canvas.draw()
@@ -267,6 +272,7 @@ class RenderDicomSeries:
         # do only if we are currently on a valid data type
         roi_keys = self.roi_indicies.keys()
         if self.curr_selection in roi_keys:
+            return
 
             # get current roi
             curr_roi = REGEX_PARSE.findall(self.curr_selection)[0]
@@ -287,7 +293,7 @@ class RenderDicomSeries:
                         roi_center = tuple(roi_center.tolist())
 
                     roi_rad = self.circle_data[c_key].radius
-                    roi_bounds = self.circle_bounds[c_key]
+                    roi_bounds = self.roi_bounds[c_key]
                     roi_slice = self.slice_location[c_key]
 
                     # get indicies
@@ -364,41 +370,35 @@ class RenderDicomSeries:
             if self.circle_data[self.curr_selection] is not None:
                 # get old circle radius data
                 roi_xy_rad = self.circle_data[self.curr_selection].radius
-                roi_bounds = self.circle_bounds[self.curr_selection]
+                roi_bounds = self.roi_bounds[self.curr_selection]
 
                 # remove old circle
                 self.circle_data[self.curr_selection].remove()
 
             # create circle object
-            if REGEX_PARSE.search(self.curr_selection).group() in self.roi_measurements.keys():
-                # default settings if None
-                roi_xy_rad = roi_xy_rad if roi_xy_rad != None else DEFAULT_XY_RAD
-                roi_bounds = roi_bounds if roi_bounds != None else DEFAULT_Z_AROUND_CENTER
+            roi_keys = self.roi_indicies.keys()
+            if self.curr_selection in roi_keys:
+                # activate lasso
+                self.curr_lasso.active = True
 
-                # make new circle
-                circ = Circle((event.xdata, event.ydata), roi_xy_rad, edgecolor='red', fill=False)
-
-                # save bounds information to self
-                self.circle_bounds[self.curr_selection] = roi_bounds
+            # for point anatomy adding
             else:
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
-            self.circle_data[self.curr_selection] = circ
-            self.circle_data[self.curr_selection].PLOTTED = True
-            self.ax.add_patch(circ)
+                self.circle_data[self.curr_selection] = circ
+                self.circle_data[self.curr_selection].PLOTTED = True
+                self.ax.add_patch(circ)
 
-            # add slice_location and circle location information
-            self.slice_location[self.curr_selection] = self.curr_idx
+                # add slice_location and circle location information
+                self.slice_location[self.curr_selection] = self.curr_idx
 
-            # add click information to dataframe
-            self.click_df = self.click_df.append(pd.DataFrame({
-                'timestamp':[datetime.datetime.now()],
-                'selection':[self.curr_selection],
-                'type': 'add'
-            })).reindex()
+                # add click information to dataframe
+                self.click_df = self.click_df.append(pd.DataFrame({
+                    'timestamp':[datetime.datetime.now()],
+                    'selection':[self.curr_selection],
+                    'type': 'add'
+                })).reindex()
 
-            # update measurements
-            self._update_attenuation()
 
             # draw image
             self.ax.figure.canvas.draw()
@@ -463,6 +463,13 @@ class RenderDicomSeries:
             # set to selection
             self.curr_selection = self.locations_markers[event.key]
 
+            # change lasso slector policy
+            roi_keys = self.roi_indicies.keys()
+            if self.curr_selection in roi_keys:
+                self.curr_lasso.active = True
+            else:
+                self.curr_lasso.active = False
+
         # escape functions
         elif event.key == "escape":
             self.curr_selection = None
@@ -522,33 +529,32 @@ class RenderDicomSeries:
         # print console msg
         self._print_console_msg()
 
-    def _change_circle_size(self, direction):
+    def _lasso(self, verts):
         """
-        INPUT:
-            direction:
-                the int direction of change for radius
-        EFFECT:
-            changes the size of the circle radius
         """
-        # return if nothing is selected
-        if self.curr_selection is None:
-            return
-        # return if slice location not valid
-        elif self.slice_location[self.curr_selection] == None:
-            return
-        # anatomy is not a roi circle to change
-        elif REGEX_PARSE.search(self.curr_selection).group() in self.roi_measurements:
-            # change size
-            curr_rad = self.circle_data[self.curr_selection].radius
-            self.circle_data[self.curr_selection].set_radius(curr_rad + (direction * 1))
+        # test if current key is a roi key
+        roi_keys = self.roi_indicies.keys()
+        if self.curr_selection in roi_keys:
+            # get path
+            ver_path = path.Path(verts)
+
+            # save indicies
+            self.roi_indicies[self.curr_selection] = ver_path
+
+            # save patch
+            patch = patches.PathPatch(ver_path, facecolor='orange', alpha = 0.4)
+            self.roi_data[self.curr_selection] = patch
+            self.ax.add_patch(patch)
+
+            # add slice_location and circle location information
+            self.slice_location[self.curr_selection] = self.curr_idx
 
             # update measurements
-            self._update_attenuation()
+            #self._update_attenuation()
 
-            # rerender
-            self.ax.figure.canvas.draw()
-        else:
-            return
+            # update image
+            self._update_image(self.curr_idx)
+
 
     def _change_z_bounds(self, direction):
         """
@@ -565,11 +571,11 @@ class RenderDicomSeries:
         elif self.curr_selection not in self.roi_measurements.keys():
             return
         # don't change if we have less than zero slices
-        elif self.circle_bounds[self.curr_selection] + direction < 0:
+        elif self.roi_bounds[self.curr_selection] + direction < 0:
             return
         else:
-            self.circle_bounds[self.curr_selection] =\
-                self.circle_bounds[self.curr_selection] + direction
+            self.roi_bounds[self.curr_selection] =\
+                self.roi_bounds[self.curr_selection] + direction
 
             # update image
             self._update_image(self.curr_idx)
@@ -585,11 +591,11 @@ class RenderDicomSeries:
         RETURN:
             True if and only if:
                 - if location is in roi_landmarks list
-                - circle_bounds[location][1] is not none
+                - roi_bounds[location][1] is not none
                 - slice is actuall within bounds
             False otherwise
         """
-        curr_bounds = self.circle_bounds[location]
+        curr_bounds = self.roi_bounds[location]
         curr_loc = self.slice_location[location]
 
         # test to see if location is wihtin roi_landmarks
@@ -650,17 +656,21 @@ class RenderDicomSeries:
 
         # test if already populated data to reset
         if self.circle_data[self.curr_selection] is not None:
-            # remove old circle
-            self.circle_data[self.curr_selection].remove()
+            # test if it's an roi
+            roi_keys = self.roi_indicies.keys()
+            if self.curr_selection in roi_keys:
+                self.roi_data[self.curr_selection].remove()
+                self.roi_data[self.curr_selection] = None
 
-            # if it's dumb and it works, it ain't dumb...
-            self.circle_data[self.curr_selection] = None
+            # for point anatomy locations
+            else:
 
-        # draw image
-        self.ax.figure.canvas.draw()
+                # remove old circle
+                self.circle_data[self.curr_selection].remove()
+                self.circle_data[self.curr_selection] = None
 
-        # remove slice location
-        self.slice_location[self.curr_selection] =  None
+                # remove slice location
+                self.slice_location[self.curr_selection] =  None
 
         # add click information to dataframe
         self.click_df = self.click_df.append(pd.DataFrame({
@@ -668,6 +678,9 @@ class RenderDicomSeries:
             'selection':[self.curr_selection],
             'type': 'remove'
         })).reindex()
+
+        # draw image
+        self.ax.figure.canvas.draw()
 
     def _next_image(self):
         """
@@ -752,10 +765,11 @@ def plotDicom(dicom_lst, cmd_args, previous_directory=None):
     mpl.rcParams['toolbar'] = 'None'
 
     # make fig object
-    fig, (ax) = pyplot.subplots(1)
+    fig, (ax) = pyplot.subplots(1, edgecolor="black")
 
     # make figure
     ax.set_aspect('equal')
+    ax.axis('off')
     cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
 
     # connect to function
