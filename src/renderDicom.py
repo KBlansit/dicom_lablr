@@ -25,6 +25,16 @@ CONTRAST_SCALE = 5
 
 DEFAULT_Z_AROUND_CENTER = 2
 
+COLOR_MAP = [
+    "blue",
+    "green",
+    "orange",
+    "red",
+    "yellow",
+    "teal",
+    "pink",
+]
+
 # disable key maps
 mpl.rcParams['keymap.fullscreen'] = ''
 mpl.rcParams['keymap.home'] = ''
@@ -72,6 +82,8 @@ class RenderDicomSeries:
                 settings["roi_landmarks"],
                 len(settings["roi_landmarks"]) * [None],
             ))
+
+            self.roi_colors = dict(zip(settings["roi_landmarks"], COLOR_MAP))
 
         else:
             self.roi_verts = {}
@@ -491,7 +503,9 @@ class RenderDicomSeries:
             self.roi_verts[self.curr_selection] = ver_path
 
             # save patch
-            patch = patches.PathPatch(ver_path, facecolor='orange', alpha = 0.4)
+            curr_class = REGEX_PARSE.search(self.curr_selection).group()
+            curr_color = self.roi_colors[curr_class]
+            patch = patches.PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
             self.roi_data[self.curr_selection] = patch
             self.ax.add_patch(patch)
 
