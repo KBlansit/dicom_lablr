@@ -191,7 +191,7 @@ class RenderDicomSeries:
             a pandas dataframe of the coordinates
         """
         # initialize df
-        df = pd.DataFrame(columns = ["x", "y", "img_slice", "location", "rad", "z_len"])
+        anatomy_location_df = pd.DataFrame(columns = ["x", "y", "img_slice", "location", "rad", "z_len"])
 
         # iterate through anatomic types
         for location in self.valid_location_types:
@@ -203,7 +203,7 @@ class RenderDicomSeries:
                 x, y, img_slice = [x], [y], [img_slice]
 
                 # for ROI markers
-                if location in self.roi_indicies:
+                if location in self.roi_data:
                     roi_xy_rad = self.circle_data[location].radius
                     roi_bounds = self.roi_bounds[location]
                 else:
@@ -217,7 +217,15 @@ class RenderDicomSeries:
                 'roi_xy_rad': roi_xy_rad,
                 'roi_bounds': roi_bounds,
             })
-            df = df.append(tmp_df)
+            anatomy_location_df = df.append(tmp_df)
+
+        # iterate through roi measurements
+        for k, v in self.roi_measurements.items():
+            # k is the anatomy name
+            # v is the value
+            
+
+
 
         return df, self.click_df
 
@@ -243,18 +251,16 @@ class RenderDicomSeries:
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
             if self.slice_location[x] == new_idx:
-                if x in self.roi_indicies.keys():
-                    self.roi_data[x].set_visible(True)
+                if x in self.roi_data.keys():
+                    if self.roi_data[x] is not None:
+                        self.roi_data[x].set_visible(True)
                 else:
                     self.circle_data[x].set_visible(True)
-            elif self._eval_roi_bounds(x):
-                if x in self.roi_indicies.keys():
-                    self.roi_data[x].set_visible(True)
-                else:
-                    self.circle_data[x].set_visible(True)
+            elif self._eval_roi_bounds(x) and self.roi_data[x] is not None:
+                self.roi_data[x].set_visible(True)
             elif self.slice_location[x] == None:
                 pass
-            elif x in self.roi_indicies.keys():
+            elif x in self.roi_data.keys():
                 if self.roi_data[x] is not None:
                     self.roi_data[x].set_visible(False)
             else:
@@ -270,8 +276,7 @@ class RenderDicomSeries:
             updates attenuation measurements
         """
         # do only if we are currently on a valid data type
-        roi_keys = self.roi_indicies.keys()
-        if self.curr_selection in roi_keys:
+        if self.curr_selection in self.roi_data.keys():
             return
 
             # get current roi
@@ -376,13 +381,7 @@ class RenderDicomSeries:
                 self.circle_data[self.curr_selection].remove()
 
             # create circle object
-            roi_keys = self.roi_indicies.keys()
-            if self.curr_selection in roi_keys:
-                # activate lasso
-                self.curr_lasso.active = True
-
-            # for point anatomy adding
-            else:
+            if not self.curr_selection in self.roi_data.keys():
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
                 self.circle_data[self.curr_selection] = circ
@@ -464,8 +463,7 @@ class RenderDicomSeries:
             self.curr_selection = self.locations_markers[event.key]
 
             # change lasso slector policy
-            roi_keys = self.roi_indicies.keys()
-            if self.curr_selection in roi_keys:
+            if self.curr_selection in self.roi_data.keys():
                 self.curr_lasso.active = True
             else:
                 self.curr_lasso.active = False
@@ -533,8 +531,8 @@ class RenderDicomSeries:
         """
         """
         # test if current key is a roi key
-        roi_keys = self.roi_indicies.keys()
-        if self.curr_selection in roi_keys:
+        if self.curr_selection in self.roi_data.keys():
+
             # get path
             ver_path = path.Path(verts)
 
@@ -548,6 +546,7 @@ class RenderDicomSeries:
 
             # add slice_location and circle location information
             self.slice_location[self.curr_selection] = self.curr_idx
+            self.roi_bounds[self.curr_selection] = DEFAULT_Z_AROUND_CENTER
 
             # update measurements
             #self._update_attenuation()
@@ -654,23 +653,28 @@ class RenderDicomSeries:
         elif self.slice_location[self.curr_selection] == None:
             return
 
-        # test if already populated data to reset
-        if self.circle_data[self.curr_selection] is not None:
-            # test if it's an roi
-            roi_keys = self.roi_indicies.keys()
-            if self.curr_selection in roi_keys:
+        # test if it's an roi
+        if self.curr_selection in self.roi_data.keys():
+            # test if already populated data to reset
+            if self.roi_data[self.curr_selection] is not None:
                 self.roi_data[self.curr_selection].remove()
                 self.roi_data[self.curr_selection] = None
-
-            # for point anatomy locations
             else:
+                return
 
+
+        # remove for point location anatomy data
+        else:
+            # test if already populated data to reset
+            if self.circle_data[self.curr_selection] is not None:
                 # remove old circle
                 self.circle_data[self.curr_selection].remove()
                 self.circle_data[self.curr_selection] = None
 
                 # remove slice location
                 self.slice_location[self.curr_selection] =  None
+            else:
+                return
 
         # add click information to dataframe
         self.click_df = self.click_df.append(pd.DataFrame({
