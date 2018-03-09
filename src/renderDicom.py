@@ -288,26 +288,29 @@ class RenderDicomSeries:
 
             # do for keys
             for curr_k in [x for x in self.roi_data.keys() if x.startswith(curr_roi)]:
-                # get current roi
-                roi_path_indx = self.roi_verts[self.curr_selection]
+                # test if curr key has been used
+                if not self.roi_verts[curr_k] is None:
 
-                # get slice ranges
-                curr_bounds = self.roi_bounds[self.curr_selection]
-                curr_loc = self.slice_location[self.curr_selection]
+                    # get current roi
+                    roi_path_indx = self.roi_verts[curr_k]
 
-                slice_range = (
-                    max(0, curr_loc - curr_bounds),
-                    min(len(self.dicom_lst), curr_loc + curr_bounds) + 1,
-                )
+                    # get slice ranges
+                    curr_bounds = self.roi_bounds[curr_k]
+                    curr_loc = self.slice_location[curr_k]
 
-                # get dims
-                dicom_dims = self.dicom_lst[0].pixel_array.shape
+                    slice_range = (
+                        max(0, curr_loc - curr_bounds),
+                        min(len(self.dicom_lst), curr_loc + curr_bounds) + 1,
+                    )
 
-                # get roi indicies
-                curr_indx_lst = get_roi_indicies(roi_path_indx, dicom_dims, slice_range)
+                    # get dims
+                    dicom_dims = self.dicom_lst[0].pixel_array.shape
 
-                # add to roi coord arry
-                roi_indx_lst = roi_indx_lst + curr_indx_lst
+                    # get roi indicies
+                    curr_indx_lst = get_roi_indicies(roi_path_indx, dicom_dims, slice_range)
+
+                    # add to roi coord arry
+                    roi_indx_lst = roi_indx_lst + curr_indx_lst
 
             # get unique coords
             roi_indx_lst = list(set(roi_indx_lst))

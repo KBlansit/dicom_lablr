@@ -7,8 +7,6 @@ import dicom
 import numpy as np
 import pandas as pd
 
-from scipy.ndimage import label
-
 # define parameters
 HOUNSFIELD_1_MIN = 130
 HOUNSFIELD_2_MIN = 200
@@ -78,27 +76,20 @@ def get_agatston_score(mskd_mtx, pixel_spacing):
         # get current slice
         curr_slice = mskd_mtx[:, :, curr_slice_indx]
 
-        # get connected components for the slice
-        lbl_mtx, n_features = label(curr_slice)
+        # count non zero vals
+        pxls = np.count_nonzero(curr_slice)
 
-        # for each connected component
-        for curr_feature in range(1, n_features + 1):
-            # get number of pixels
-            pxls = np.sum(lbl_mtx == curr_feature)
+        # get area
+        area = pxls * pixel_spacing
 
-            # get area
-            area = pxls * pixel_spacing
+        # get max houndsfield
+        mx_hu = get_max_hounsfield(curr_slice)
 
-            # ignore if below 1 mm^2
-            if area > 1:
-                # get indicies of curr feature
-                lbl_indx = np.where(lbl_mtx == curr_feature)
+        # ignore if below 1 mm^2
+        if area > 1 and mx_hu:
 
-                # get max houndsfield
-                mx_hu = get_max_hounsfield(mskd_mtx[lbl_indx])
-
-                # add to total calcium
-                total_calcium = total_calcium + (area * mx_hu)
+            # add to total calcium
+            total_calcium = total_calcium + (area * mx_hu)
 
     # return
     return total_calcium
