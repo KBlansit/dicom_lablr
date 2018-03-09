@@ -497,9 +497,9 @@ class RenderDicomSeries:
 
         # change radius of current circle if a ROI landmark
         elif event.key == "+":
-            self._change_circle_size(1)
+            self._change_z_bounds(1)
         elif event.key == "-":
-            self._change_circle_size(-1)
+            self._change_z_bounds(-1)
 
         # change z bounds around true slice
         elif event.key == "}":
@@ -524,6 +524,9 @@ class RenderDicomSeries:
         """
         # test if current key is a roi key
         if self.curr_selection in self.roi_indicies.keys():
+
+            # remove old
+            self._reset_location()
 
             # get path
             ver_path = path.Path(verts)
@@ -559,7 +562,7 @@ class RenderDicomSeries:
         if self.curr_selection is None:
             return
         # return if we aren't in a valid roi type
-        elif self.curr_selection not in self.roi_measurements.keys():
+        elif self.curr_selection not in self.roi_data.keys():
             return
         # don't change if we have less than zero slices
         elif self.roi_bounds[self.curr_selection] + direction < 0:
