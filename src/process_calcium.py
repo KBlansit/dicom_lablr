@@ -103,7 +103,32 @@ def get_agatston_score(mskd_mtx, pixel_spacing):
     # return
     return total_calcium
 
-def get_calcium_score(vld_indx, slice_range, dicom_lst):
+def mask_matrix(mtx, roi_indx):
+    """
+    """
+    # get all indicies of matrix
+    bins = np.indices(pxl_mtx.shape)
+    pos = np.stack(bins, axis=-1).reshape([-1, 3])
+
+    # add min index
+    pos[:,0] = pos[:,0] + maxx
+    pos[:,1] = pos[:,1] + maxx
+    pos[:,2] = pos[:,2] + maxx
+
+    # convert to list of tuples
+    tpl_lst = [tuple(x) for x in pos.tolist()]
+
+    # get coordinates not in ROIs
+    diff_set = set(tpl_lst).difference(roi_indicies)
+
+    # make a matrix
+    not_in_roi_mtx = np.stack(diff_set)
+    not_in_roi_mtx[:,0] = not_in_roi_mtx[:,0] - y_rng[0]
+    not_in_roi_mtx[:,1] = not_in_roi_mtx[:,1] - x_rng[0]
+    not_in_roi_mtx[:,2] = not_in_roi_mtx[:,2] - s_rng[0]
+
+
+def get_calcium_score(roi_indx, slice_range, dicom_lst):
     """
     INPUTS:
         roi_indicies:
@@ -114,15 +139,18 @@ def get_calcium_score(vld_indx, slice_range, dicom_lst):
     """
 
     # get min and max vals
-    min_y, min_x = vld_indx.min(axis=0)
-    max_y, max_x = vld_indx.max(axis=0)
+    min_x, min_y, min_s = roi_indx.min(axis=0)
+    max_x, max_y, max_s = roi_indx.max(axis=0)
 
     # get dicomes for range in s_rng, and then crop y_rng and x_rng
-    pxl_lst = [rescale_dicom(dicom_lst[x]) for x in range(slice_range[0], slice_range[1] + 1)]
-    pxl_lst = [x[min_x:max_x, min_y:max_y] for x in pxl_lst]
+    pxl_lst = [rescale_dicom(dicom_lst[x]) for x in range(min_s, max_s + 1)]
+    pxl_lst = [x[min_y:max_y, min_x:max_x] for x in pxl_lst]
 
     # stack into 3D matrix
     pxl_mtx = np.stack(pxl_lst, axis=-1)
+
+    # mask matrix
+    #pxl_mtx = mask_matrix(pxl_mtx, roi_indx)
 
     # mask below min houndsfield threshold
     pxl_mtx[np.where(pxl_mtx < HOUNSFIELD_1_MIN)] = 0
@@ -134,6 +162,7 @@ def get_calcium_score(vld_indx, slice_range, dicom_lst):
     ca_score = get_agatston_score(pxl_mtx.copy(), px_spacing)
 
     print(ca_score)
+    return ca_score
 
 def calculate_calcium_volume(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):
     """
@@ -157,4 +186,3 @@ def calculate_calcium_volume(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):
 
     # get volume
     total_volume = total_area.sum() * curr_dicom_lst[0].SliceThickness
-    import pdb; pdb.set_trace()

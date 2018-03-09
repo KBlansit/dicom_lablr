@@ -280,17 +280,17 @@ class RenderDicomSeries:
         """
         # do only if we are currently on a valid data type
         if self.curr_selection in self.roi_data.keys():
-            # determine if we have roi data
-            if self.roi_verts[self.curr_selection]:
+            # get curr roi type
+            curr_roi = REGEX_PARSE.search(self.curr_selection).group()
 
-                # get dims
-                dicom_dims = self.dicom_lst[0].pixel_array.shape
+            # initialize indicies
+            roi_coord_arry = np.array([], dtype='int64')
+            roi_coord_arry = roi_coord_arry.reshape(0, 3)
 
+            # do for keys
+            for curr_k in [x for x in self.roi_data.keys() if x.startswith(curr_roi)]:
                 # get current roi
                 roi_path_indx = self.roi_verts[self.curr_selection]
-
-                # get roi indicies
-                vld_indx = get_roi_indicies(roi_path_indx, dicom_dims)
 
                 # get slice ranges
                 curr_bounds = self.roi_bounds[self.curr_selection]
@@ -298,11 +298,23 @@ class RenderDicomSeries:
 
                 slice_range = (
                     max(0, curr_loc - curr_bounds),
-                    min(len(self.dicom_lst), curr_loc + curr_bounds),
+                    min(len(self.dicom_lst), curr_loc + curr_bounds) + 1,
                 )
 
-                # get calcium score
-                get_calcium_score(vld_indx, slice_range, self.dicom_lst)
+                # get dims
+                dicom_dims = self.dicom_lst[0].pixel_array.shape
+
+                # get roi indicies
+                vld_indx = get_roi_indicies(roi_path_indx, dicom_dims, slice_range)
+
+                # add to roi coord arry
+                roi_coord_arry = np.append(roi_coord_arry, vld_indx, axis=0)
+
+            # get unique coords
+            roi_coord_arry = np.unique(roi_coord_arry, axis=0)
+
+            # get calcium score
+            get_calcium_score(roi_coord_arry, slice_range, self.dicom_lst)
 
     def _on_click(self, event):
         """

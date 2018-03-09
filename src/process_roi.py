@@ -9,19 +9,31 @@ import pandas as pd
 
 from numpy.linalg import norm
 
-def get_roi_indicies(path_indx, dicom_dims):
+def get_roi_indicies(path_indx, dicom_dims, slice_range):
     """
     INPUT:
         path_indx:
-            the matplotlib Path indicies of a vertex
-        shape:
-            the XYZ shape of the input
+            the path indx of the roi
+        dicom_dims:
+            the XY shape of the input
+        slice_range:
+            the ranges of the roi
     OUTPUT:
-        the Y, X, Slice of the coordinates in the ROI
+        the X, Y, Slice of the coordinates in the ROI
     """
 
     # get dimentions
     bins = np.indices(tuple(dicom_dims))
     pos = np.stack(bins, axis=-1).reshape([-1, 2])
 
-    return pos[path_indx.contains_points(pos)]
+    # get valid indicies
+    vld_pos = pos[path_indx.contains_points(pos)]
+
+    # append slice
+    vld_lst = [np.insert(vld_pos, 2, x, axis=-1) for x in range(*slice_range)]
+
+    # concatenate
+    vld_indx = np.concatenate(vld_lst)
+
+    # return
+    return vld_indx
