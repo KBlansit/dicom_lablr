@@ -203,7 +203,7 @@ class RenderDicomSeries:
                 x, y, img_slice = [x], [y], [img_slice]
 
                 # for ROI markers
-                if location in self.roi_indicies:
+                if location in self.roi_data:
                     roi_xy_rad = self.circle_data[location].radius
                     roi_bounds = self.roi_bounds[location]
                 else:
@@ -268,7 +268,7 @@ class RenderDicomSeries:
             updates attenuation measurements
         """
         # do only if we are currently on a valid data type
-        if self.curr_selection in self.roi_indicies.keys():
+        if self.curr_selection in self.roi_data.keys():
             return
 
             # get current roi
@@ -373,7 +373,7 @@ class RenderDicomSeries:
                 self.circle_data[self.curr_selection].remove()
 
             # create circle object
-            if not self.curr_selection in self.roi_indicies.keys():
+            if not self.curr_selection in self.roi_data.keys():
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
                 self.circle_data[self.curr_selection] = circ
@@ -455,7 +455,7 @@ class RenderDicomSeries:
             self.curr_selection = self.locations_markers[event.key]
 
             # change lasso slector policy
-            if self.curr_selection in self.roi_indicies.keys():
+            if self.curr_selection in self.roi_data.keys():
                 self.curr_lasso.active = True
             else:
                 self.curr_lasso.active = False
@@ -521,9 +521,10 @@ class RenderDicomSeries:
 
     def _lasso(self, verts):
         """
+        updates roi
         """
         # test if current key is a roi key
-        if self.curr_selection in self.roi_indicies.keys():
+        if self.curr_selection in self.roi_data.keys():
 
             # remove old
             self._reset_location()
@@ -548,7 +549,6 @@ class RenderDicomSeries:
 
             # update image
             self._update_image(self.curr_idx)
-
 
     def _change_z_bounds(self, direction):
         """
@@ -654,14 +654,13 @@ class RenderDicomSeries:
             return
 
         # test if it's an roi
-        if self.curr_selection in self.roi_indicies.keys():
+        if self.curr_selection in self.roi_data.keys():
             # test if already populated data to reset
             if self.roi_data[self.curr_selection] is not None:
                 self.roi_data[self.curr_selection].remove()
                 self.roi_data[self.curr_selection] = None
             else:
                 return
-
 
         # remove for point location anatomy data
         else:
