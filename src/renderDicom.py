@@ -24,7 +24,6 @@ INITIAL_USR_MSG = "Please select a anatomic landmark"
 CONTRAST_SCALE = 5
 
 DEFAULT_Z_AROUND_CENTER = 2
-DEFAULT_XY_RAD = 10
 
 # disable key maps
 mpl.rcParams['keymap.fullscreen'] = ''
@@ -63,7 +62,7 @@ class RenderDicomSeries:
                     roi_lst.append(lndmrk)
 
             # set indicies dict
-            self.roi_indicies = dict(zip(
+            self.roi_verts = dict(zip(
                 roi_lst,
                 len(roi_lst) * [None],
             ))
@@ -75,7 +74,7 @@ class RenderDicomSeries:
             ))
 
         else:
-            self.roi_indicies = {}
+            self.roi_verts = {}
             self.roi_measurements = {}
 
 
@@ -155,7 +154,7 @@ class RenderDicomSeries:
         sys.stdout.flush()
 
         # initialize lasso selector
-        self.curr_lasso = LassoSelector(self.ax, self._lasso)
+        self.curr_lasso = LassoSelector(self.ax, self._lasso, button=1)
         self.curr_lasso.active = False
 
     def connect(self):
@@ -269,71 +268,29 @@ class RenderDicomSeries:
         """
         # do only if we are currently on a valid data type
         if self.curr_selection in self.roi_data.keys():
-            return
+            # determine if we have roi data
+            if self.roi_verts[self.curr_selection]:
 
-            # get current roi
-            curr_roi = REGEX_PARSE.findall(self.curr_selection)[0]
+                # get dims
+                dicom_dims = self.dicom_lst[0].pixel_array.shape
 
-            # get all keys for current roi
-            curr_roi_keys = [x for x in roi_keys if x.startswith(curr_roi)]
+                # get current roi
+                roi_path_indx = self.roi_verts[self.curr_selection]
 
-            # get unique indicies
-            roi_indx_lst = []
-            for c_key in curr_roi_keys:
+                # get roi indicies
+                vld_indx = get_roi_indicies(roi_path_indx, dicom_dims)
 
-                # determine if we have circle
-                if self.circle_data[c_key]:
+                # get slice ranges
+                curr_bounds = self.roi_bounds[self.curr_selection]
+                curr_loc = self.slice_location[self.curr_selection]
 
-                    # get cirlce data
-                    roi_center = self.circle_data[c_key].center
-                    if type(roi_center) == pd.Series:
-                        roi_center = tuple(roi_center.tolist())
+                slice_range = (
+                    max(0, curr_loc - curr_bounds),
+                    min(len(self.dicom_lst), curr_loc + curr_bounds),
+                )
 
-                    roi_rad = self.circle_data[c_key].radius
-                    roi_bounds = self.roi_bounds[c_key]
-                    roi_slice = self.slice_location[c_key]
-
-                    # get indicies
-                    if not None in roi_center:
-                        # append to list
-                        xyz_indx_mtx = get_roi_indicies(roi_center, roi_rad, roi_bounds, roi_slice, self.dicom_lst)
-                        roi_indx_lst.append(xyz_indx_mtx)
-
-            # get lists for each, unlist, and find unique coords
-            roi_indx_lst = [x.tolist() for x in roi_indx_lst]
-            roi_indx_lst = [x for y in roi_indx_lst for x in y]
-            roi_indx_lst = [tuple(x) for x in roi_indx_lst]
-            roi_indx_lst = list(set(roi_indx_lst))
-
-            # test if we have valid indicies
-            if len(roi_indx_lst):
                 # get calcium score
-                get_calcium_score(roi_indx_lst, self.dicom_lst)
-
-
-
-
-            # get list of rois
-
-
-
-
-            #mtx_shape = self.dicom_lst[0].pixel_array.shape
-
-            #import pdb; pdb.set_trace()
-            # update indicies
-
-
-
-
-        #indxs = calculate_indicies(roi_center, roi_rad, mtx_shape)
-        #self.roi_indicies[self.curr_selection] = indxs
-        ## calculate calcium volume
-        #ca_vol = calculate_calcium_volume(self.dicom_lst, indxs, roi_slice, roi_bounds)
-        #mx_hounds = get_max_hounsfield(self.dicom_lst, indxs, roi_slice, roi_bounds)
-        #ca_values = [ca_vol, ca_vol * mx_hounds]
-        ## reassign indicies and measurements
-        #self.roi_measurements[REGEX_PARSE.search(self.curr_selection).group()] = ca_values
+                get_calcium_score(vld_indx, slice_range, self.dicom_lst)
 
     def _on_click(self, event):
         """
@@ -529,11 +486,9 @@ class RenderDicomSeries:
             # remove old
             self._reset_location()
 
-            # get path
+            # save verts indicies
             ver_path = path.Path(verts)
-
-            # save indicies
-            self.roi_indicies[self.curr_selection] = ver_path
+            self.roi_verts[self.curr_selection] = ver_path
 
             # save patch
             patch = patches.PathPatch(ver_path, facecolor='orange', alpha = 0.4)
@@ -544,11 +499,11 @@ class RenderDicomSeries:
             self.slice_location[self.curr_selection] = self.curr_idx
             self.roi_bounds[self.curr_selection] = DEFAULT_Z_AROUND_CENTER
 
-            # update measurements
-            #self._update_attenuation()
-
             # update image
             self._update_image(self.curr_idx)
+
+            # update measurements
+            self._update_attenuation()
 
     def _change_z_bounds(self, direction):
         """
@@ -575,7 +530,7 @@ class RenderDicomSeries:
             self._update_image(self.curr_idx)
 
             # update measurements
-            self._update_attenuation
+            self._update_attenuation()
 
     def _eval_roi_bounds(self, location):
         """

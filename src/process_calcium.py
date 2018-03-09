@@ -103,7 +103,7 @@ def get_agatston_score(mskd_mtx, pixel_spacing):
     # return
     return total_calcium
 
-def get_calcium_score(roi_indicies, dicom_lst):
+def get_calcium_score(vld_indx, slice_range, dicom_lst):
     """
     INPUTS:
         roi_indicies:
@@ -113,49 +113,16 @@ def get_calcium_score(roi_indicies, dicom_lst):
     OUTPUT:
     """
 
-    # get vals
-    y_vals = [x[0] for x in roi_indicies]
-    x_vals = [x[1] for x in roi_indicies]
-    s_vals = [x[2] for x in roi_indicies]
-
-    # get min and max
-    y_rng = min(y_vals), max(y_vals) + 1
-    x_rng = min(x_vals), max(x_vals) + 1
-    s_rng = min(s_vals), max(s_vals) + 1
+    # get min and max vals
+    min_y, min_x = vld_indx.min(axis=0)
+    max_y, max_x = vld_indx.max(axis=0)
 
     # get dicomes for range in s_rng, and then crop y_rng and x_rng
-    pxl_lst = [rescale_dicom(dicom_lst[x]) for x in range(*s_rng)]
-    pxl_lst = [x[y_rng[0]:y_rng[1], x_rng[0]:x_rng[1]] for x in pxl_lst]
+    pxl_lst = [rescale_dicom(dicom_lst[x]) for x in range(slice_range[0], slice_range[1] + 1)]
+    pxl_lst = [x[min_x:max_x, min_y:max_y] for x in pxl_lst]
 
     # stack into 3D matrix
     pxl_mtx = np.stack(pxl_lst, axis=-1)
-
-    # get all indicies of matrix
-    bins = np.indices(pxl_mtx.shape)
-    pos = np.stack(bins, axis=-1).reshape([-1, 3])
-
-    # add min index
-    pos[:,0] = pos[:,0] + y_rng[0]
-    pos[:,1] = pos[:,1] + x_rng[0]
-    pos[:,2] = pos[:,2] + s_rng[0]
-
-    # convert to list of tuples
-    tpl_lst = [tuple(x) for x in pos.tolist()]
-
-    # get coordinates not in ROIs
-    diff_set = set(tpl_lst).difference(roi_indicies)
-
-    # make a matrix
-    not_in_roi_mtx = np.stack(diff_set)
-    not_in_roi_mtx[:,0] = not_in_roi_mtx[:,0] - y_rng[0]
-    not_in_roi_mtx[:,1] = not_in_roi_mtx[:,1] - x_rng[0]
-    not_in_roi_mtx[:,2] = not_in_roi_mtx[:,2] - s_rng[0]
-
-    # move to lists
-    zero_msk_indx = not_in_roi_mtx.T.tolist()
-
-    # mask indicies that are not in valid
-    pxl_mtx[zero_msk_indx] = 0
 
     # mask below min houndsfield threshold
     pxl_mtx[np.where(pxl_mtx < HOUNSFIELD_1_MIN)] = 0
