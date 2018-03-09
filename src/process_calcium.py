@@ -103,23 +103,40 @@ def get_agatston_score(mskd_mtx, pixel_spacing):
     # return
     return total_calcium
 
-def mask_matrix(mtx, roi_indx):
+def mask_matrix(mtx, roi_indx_lst):
     """
+    INPUTS:
+        mtx:
+            the input matrix
+        roi_indx_lst:
+            the list of coordinate tuples
+    OUTPUT:
+        the non roi masked matrix
     """
+    # get vals
+    y_vals = [x[0] for x in roi_indx_lst]
+    x_vals = [x[1] for x in roi_indx_lst]
+    s_vals = [x[2] for x in roi_indx_lst]
+
+    # get min and max
+    y_rng = min(y_vals), max(y_vals) + 1
+    x_rng = min(x_vals), max(x_vals) + 1
+    s_rng = min(s_vals), max(s_vals) + 1
+
     # get all indicies of matrix
-    bins = np.indices(pxl_mtx.shape)
+    bins = np.indices(mtx.shape)
     pos = np.stack(bins, axis=-1).reshape([-1, 3])
 
     # add min index
-    pos[:,0] = pos[:,0] + maxx
-    pos[:,1] = pos[:,1] + maxx
-    pos[:,2] = pos[:,2] + maxx
+    pos[:,0] = pos[:,0] + y_rng[0]
+    pos[:,1] = pos[:,1] + x_rng[0]
+    pos[:,2] = pos[:,2] + s_rng[0]
 
     # convert to list of tuples
     tpl_lst = [tuple(x) for x in pos.tolist()]
 
     # get coordinates not in ROIs
-    diff_set = set(tpl_lst).difference(roi_indicies)
+    diff_set = set(tpl_lst).difference(roi_indx_lst)
 
     # make a matrix
     not_in_roi_mtx = np.stack(diff_set)
@@ -127,30 +144,44 @@ def mask_matrix(mtx, roi_indx):
     not_in_roi_mtx[:,1] = not_in_roi_mtx[:,1] - x_rng[0]
     not_in_roi_mtx[:,2] = not_in_roi_mtx[:,2] - s_rng[0]
 
+    # move to lists
+    zero_msk_indx = not_in_roi_mtx.T.tolist()
 
-def get_calcium_score(roi_indx, slice_range, dicom_lst):
+    # mask indicies that are not in valid
+    mskd_mtx = mtx.copy()
+    mskd_mtx[zero_msk_indx] = 0
+
+    return mskd_mtx
+
+def get_calcium_score(roi_indx_lst, dicom_lst):
     """
     INPUTS:
-        roi_indicies:
-            the list of unique ROIs
+        roi_indx_lst:
+            the list of coordinate tuples
         dicom_lst:
             the list of dicom files
     OUTPUT:
+        the calculated calcium score
     """
+    # get vals
+    y_vals = [x[0] for x in roi_indx_lst]
+    x_vals = [x[1] for x in roi_indx_lst]
+    s_vals = [x[2] for x in roi_indx_lst]
 
-    # get min and max vals
-    min_x, min_y, min_s = roi_indx.min(axis=0)
-    max_x, max_y, max_s = roi_indx.max(axis=0)
+    # get min and max
+    y_rng = min(y_vals), max(y_vals) + 1
+    x_rng = min(x_vals), max(x_vals) + 1
+    s_rng = min(s_vals), max(s_vals) + 1
 
     # get dicomes for range in s_rng, and then crop y_rng and x_rng
-    pxl_lst = [rescale_dicom(dicom_lst[x]) for x in range(min_s, max_s + 1)]
-    pxl_lst = [x[min_y:max_y, min_x:max_x] for x in pxl_lst]
+    pxl_lst = [rescale_dicom(dicom_lst[x]) for x in range(*s_rng)]
+    pxl_lst = [x[x_rng[0]:x_rng[1], y_rng[0]:y_rng[1]] for x in pxl_lst]
 
     # stack into 3D matrix
     pxl_mtx = np.stack(pxl_lst, axis=-1)
 
     # mask matrix
-    #pxl_mtx = mask_matrix(pxl_mtx, roi_indx)
+    pxl_mtx = mask_matrix(pxl_mtx, roi_indx_lst)
 
     # mask below min houndsfield threshold
     pxl_mtx[np.where(pxl_mtx < HOUNSFIELD_1_MIN)] = 0
@@ -161,7 +192,6 @@ def get_calcium_score(roi_indx, slice_range, dicom_lst):
     # get calcium score
     ca_score = get_agatston_score(pxl_mtx.copy(), px_spacing)
 
-    print(ca_score)
     return ca_score
 
 def calculate_calcium_volume(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):

@@ -36,4 +36,4 @@ def get_roi_indicies(path_indx, dicom_dims, slice_range):
     vld_indx = np.concatenate(vld_lst)
 
     # return
-    return vld_indx
+    return [tuple(x) for x in vld_indx.tolist()]
