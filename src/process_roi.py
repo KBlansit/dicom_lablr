@@ -22,6 +22,10 @@ def get_roi_indicies(path_indx, dicom_dims, slice_range):
         the X, Y, Slice of the coordinates in the ROI
     """
 
+    # see if we have indicies
+    if not path_indx:
+        return []
+
     # get dimentions
     bins = np.indices(tuple(dicom_dims))
     pos = np.stack(bins, axis=-1).reshape([-1, 2])

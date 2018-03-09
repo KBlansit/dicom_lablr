@@ -312,10 +312,15 @@ class RenderDicomSeries:
             # get unique coords
             roi_indx_lst = list(set(roi_indx_lst))
 
+            # do if we have indicies
             # get calcium score
-            ca_score = get_calcium_score(roi_indx_lst, slice_range, self.dicom_lst)
+            if len(roi_indx_lst):
+                ca_score = get_calcium_score(roi_indx_lst, self.dicom_lst)
+            else:
+                ca_score = None
 
-            print(ca_score)
+            # save score
+            self.roi_measurements[curr_roi] = ca_score
 
     def _on_click(self, event):
         """
@@ -606,8 +611,23 @@ class RenderDicomSeries:
 
                     # construct string
                     slice_loc_str = " [slice - ({} - {} - {})]".format(*(str(x) for x in (min_slice, curr_loc, max_slice)))
+
                 else:
                     slice_loc_str = ""
+
+                # get curr roi type
+                curr_roi = REGEX_PARSE.search(self.curr_selection).group()
+
+                # test if roi has a measurement
+                if self.roi_measurements[curr_roi]:
+                    curr_ca = str(round(self.roi_measurements[curr_roi]))
+                    ca_str = " [Ag: {}]".format(curr_ca)
+                else:
+                    ca_str = ""
+
+                slice_loc_str = "{}{}".format(slice_loc_str, ca_str)
+
+
             elif self.curr_selection in self.circle_data:
                 if self.circle_data[self.curr_selection] is not None:
                     slice_loc_str = " [slice - {}]".format(str(self.slice_location[self.curr_selection]))
@@ -641,6 +661,7 @@ class RenderDicomSeries:
             if self.roi_data[self.curr_selection] is not None:
                 self.roi_data[self.curr_selection].remove()
                 self.roi_data[self.curr_selection] = None
+                self.roi_verts[self.curr_selection] = None
             else:
                 return
 
@@ -663,6 +684,9 @@ class RenderDicomSeries:
             'selection':[self.curr_selection],
             'type': 'remove'
         })).reindex()
+
+        # update measurements
+        self._update_attenuation()
 
         # draw image
         self.ax.figure.canvas.draw()
