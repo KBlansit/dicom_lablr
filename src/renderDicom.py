@@ -191,7 +191,7 @@ class RenderDicomSeries:
             a pandas dataframe of the coordinates
         """
         # initialize df
-        anatomy_location_df = pd.DataFrame(columns = ["x", "y", "img_slice", "location", "rad", "z_len"])
+        df = pd.DataFrame(columns = ["x", "y", "img_slice", "location", "rad", "z_len"])
 
         # iterate through anatomic types
         for location in self.valid_location_types:
@@ -203,7 +203,7 @@ class RenderDicomSeries:
                 x, y, img_slice = [x], [y], [img_slice]
 
                 # for ROI markers
-                if location in self.roi_data:
+                if location in self.roi_indicies:
                     roi_xy_rad = self.circle_data[location].radius
                     roi_bounds = self.roi_bounds[location]
                 else:
@@ -217,15 +217,7 @@ class RenderDicomSeries:
                 'roi_xy_rad': roi_xy_rad,
                 'roi_bounds': roi_bounds,
             })
-            anatomy_location_df = df.append(tmp_df)
-
-        # iterate through roi measurements
-        for k, v in self.roi_measurements.items():
-            # k is the anatomy name
-            # v is the value
-            
-
-
+            df = df.append(tmp_df)
 
         return df, self.click_df
 
@@ -276,7 +268,7 @@ class RenderDicomSeries:
             updates attenuation measurements
         """
         # do only if we are currently on a valid data type
-        if self.curr_selection in self.roi_data.keys():
+        if self.curr_selection in self.roi_indicies.keys():
             return
 
             # get current roi
@@ -381,7 +373,7 @@ class RenderDicomSeries:
                 self.circle_data[self.curr_selection].remove()
 
             # create circle object
-            if not self.curr_selection in self.roi_data.keys():
+            if not self.curr_selection in self.roi_indicies.keys():
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
                 self.circle_data[self.curr_selection] = circ
@@ -463,7 +455,7 @@ class RenderDicomSeries:
             self.curr_selection = self.locations_markers[event.key]
 
             # change lasso slector policy
-            if self.curr_selection in self.roi_data.keys():
+            if self.curr_selection in self.roi_indicies.keys():
                 self.curr_lasso.active = True
             else:
                 self.curr_lasso.active = False
@@ -531,7 +523,7 @@ class RenderDicomSeries:
         """
         """
         # test if current key is a roi key
-        if self.curr_selection in self.roi_data.keys():
+        if self.curr_selection in self.roi_indicies.keys():
 
             # get path
             ver_path = path.Path(verts)
@@ -617,25 +609,30 @@ class RenderDicomSeries:
             usr_msg = INITIAL_USR_MSG
         else:
             # determine if slice has already been set
-            if self.slice_location[self.curr_selection] is not None:
-                slice_loc = "slice " + str(self.slice_location[self.curr_selection])
-                # determine to print information about calcium score
-                if self.curr_selection in self.roi_measurements.keys():
-                    roi_measurement = self.roi_measurement[self.curr_selection]
-            else:
-                slice_loc = " - "
-                # determine to print information about calcium score
-                if self.curr_selection in self.roi_measurements.keys():
-                    roi_measurement = " - "
+            if self.curr_selection in self.roi_data:
+                if self.roi_data[self.curr_selection] is not None:
+                    # get vars
+                    curr_loc = self.slice_location[self.curr_selection]
+                    curr_bounds = self.roi_bounds[self.curr_selection]
 
-            usr_msg = "Current selection: " + self.curr_selection + "[" + slice_loc + "]"
+                    # get max and min slice
+                    min_slice = max(0, curr_loc - curr_bounds)
+                    max_slice = min(len(self.dicom_lst), curr_loc + curr_bounds)
 
-            # determine to print information about calcium score
-            if self.curr_selection in self.roi_measurements.keys():
-                usr_msg = usr_msg + " Calcium Score: " + roi_measurement
+                    # construct string
+                    slice_loc_str = " [slice - ({} - {} - {})]".format(*(str(x) for x in (min_slice, curr_loc, max_slice)))
+                else:
+                    slice_loc_str = ""
+            elif self.curr_selection in self.circle_data:
+                if self.circle_data[self.curr_selection] is not None:
+                    slice_loc_str = " [slice - {}]".format(str(self.slice_location[self.curr_selection]))
+                else:
+                    slice_loc_str = ""
+
+            usr_msg = "Current selection: {}{}".format(self.curr_selection, slice_loc_str)
 
         # concatenate messges
-        usr_msg = "\r" + "Slide: %d; " %  self.curr_idx + usr_msg
+        usr_msg = "\rSlide {}; {}".format(str(self.curr_idx), usr_msg)
 
         # write message
         sys.stdout.write(usr_msg.ljust(80))
@@ -654,7 +651,7 @@ class RenderDicomSeries:
             return
 
         # test if it's an roi
-        if self.curr_selection in self.roi_data.keys():
+        if self.curr_selection in self.roi_indicies.keys():
             # test if already populated data to reset
             if self.roi_data[self.curr_selection] is not None:
                 self.roi_data[self.curr_selection].remove()
@@ -769,7 +766,7 @@ def plotDicom(dicom_lst, cmd_args, previous_directory=None):
     mpl.rcParams['toolbar'] = 'None'
 
     # make fig object
-    fig, (ax) = pyplot.subplots(1, edgecolor="black")
+    fig, (ax) = pyplot.subplots(1)
 
     # make figure
     ax.set_aspect('equal')
