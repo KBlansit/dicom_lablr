@@ -23,7 +23,7 @@ from src.process_roi import get_roi_indicies
 INITIAL_USR_MSG = "Please select a anatomic landmark"
 CONTRAST_SCALE = 5
 
-DEFAULT_Z_AROUND_CENTER = 2
+DEFAULT_Z_AROUND_CENTER = 1
 
 COLOR_MAP = [
     "blue",
@@ -52,6 +52,8 @@ mpl.rcParams['keymap.all_axes'] = ''
 # main class
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path, previous_path=None):
+        # DEBUG
+        self.DEBUG = False
 
         # import settings
         settings = import_anatomic_settings(settings_path)
@@ -318,7 +320,7 @@ class RenderDicomSeries:
             # do if we have indicies
             # get calcium score
             if len(roi_indx_lst):
-                ca_score = get_calcium_score(roi_indx_lst, self.dicom_lst)
+                ca_score = get_calcium_score(roi_indx_lst, self.dicom_lst, self.DEBUG)
             else:
                 ca_score = None
 
@@ -501,6 +503,14 @@ class RenderDicomSeries:
             self._change_z_bounds(1)
         elif event.key == "[":
             self._change_z_bounds(-1)
+
+        # DEBUG
+        elif event.key == "~":
+            self.DEBUG=True
+            if self.DEBUG:
+                print("DEBUG ENABLED")
+            else:
+                print("DEBUG OFF")
 
         # else quit
         else:
