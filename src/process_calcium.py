@@ -159,24 +159,9 @@ def get_calcium_score(roi_indx_lst, dicom_lst, debug=False):
     pxl_lst = [x[x_rng[0]:x_rng[1], y_rng[0]:y_rng[1]] for x in pxl_lst]
     pxl_mtx = np.stack(pxl_lst, axis=-1)
 
-    # DEBUG
-    if debug:
-        import matplotlib.pyplot as plt
-        fig1 = plt.figure()
-        ax1 = fig1.add_subplot(111)
-        ax1.imshow(pxl_mtx[:, :, 0], cmap="gray")
-        fig1.show()
-
     # mask matrix
     msk_mtx = mask_matrix(pxl_mtx, roi_indx_lst)
-
-    # DEBUG
-    if debug:
-        import matplotlib.pyplot as plt
-        fig2 = plt.figure()
-        ax2 = fig2.add_subplot(111)
-        ax2.imshow(msk_mtx[:, :, 0], cmap="gray")
-        fig2.show()
+    
     # mask below min houndsfield threshold
     msk_mtx[np.where(msk_mtx < HOUNSFIELD_1_MIN)] = 0
 
