@@ -104,47 +104,35 @@ def mask_matrix(mtx, roi_indx_lst):
     OUTPUT:
         the non roi masked matrix
     """
-    # get vals
-    y_vals = [x[0] for x in roi_indx_lst]
-    x_vals = [x[1] for x in roi_indx_lst]
-    s_vals = [x[2] for x in roi_indx_lst]
-
-    # get min and max
-    y_rng = min(y_vals), max(y_vals) + 1
-    x_rng = min(x_vals), max(x_vals) + 1
-    s_rng = min(s_vals), max(s_vals) + 1
+    # make matrix to subtract off vals
+    roi_mtx = np.stack(roi_indx_lst)
+    min_vals = roi_mtx.min(axis=0)
+    roi_mtx = roi_mtx - min_vals
+    roi_mtx = np.stack([roi_mtx[:, 1], roi_mtx[:, 0], roi_mtx[:, 2]]).T
 
     # get all indicies of matrix
     bins = np.indices(mtx.shape)
     pos = np.stack(bins, axis=-1).reshape([-1, 3])
 
-    # correct for slice
-    #pos[:,0] = pos[:,0] + y_rng[0]
-    #pos[:,1] = pos[:,1] + x_rng[0]
-    pos[:,2] = pos[:,2] + s_rng[0]
-
     # convert to list of tuples
-    tpl_lst = [tuple(x) for x in pos.tolist()]
+    roi_tpl_lst = [tuple(x) for x in roi_mtx.tolist()]
+    pos_tpl_lst = [tuple(x) for x in pos.tolist()]
 
     # get coordinates not in ROIs
-    diff_set = set(tpl_lst).difference(roi_indx_lst)
+    diff_set = set(pos_tpl_lst).difference(roi_tpl_lst)
 
     # make a matrix
     not_in_roi_mtx = np.stack(diff_set)
-    #not_in_roi_mtx[:,0] = not_in_roi_mtx[:,0] - y_rng[0]
-    #not_in_roi_mtx[:,1] = not_in_roi_mtx[:,1] - x_rng[0]
-    not_in_roi_mtx[:,2] = not_in_roi_mtx[:,2] - s_rng[0]
 
     # move to lists
     zero_msk_indx = not_in_roi_mtx.T.tolist()
 
     # mask indicies that are not in valid
-    mskd_mtx = np.rot90(mtx.copy())
-    mskd_mtx = np.flip(mskd_mtx, axis=0)
+    mskd_mtx = mtx.copy()
     mskd_mtx[zero_msk_indx] = 0
 
     # returns matrix
-    return np.flip(np.rot90(mskd_mtx), axis=0)
+    return mskd_mtx
 
 def get_calcium_score(roi_indx_lst, dicom_lst, debug=False):
     """
@@ -168,7 +156,7 @@ def get_calcium_score(roi_indx_lst, dicom_lst, debug=False):
 
     # form matrix
     pxl_lst = [rescale_dicom(dicom_lst[x]) for x in range(*s_rng)]
-    #pxl_lst = [x[x_rng[0]:x_rng[1], y_rng[0]:y_rng[1]] for x in pxl_lst]
+    pxl_lst = [x[x_rng[0]:x_rng[1], y_rng[0]:y_rng[1]] for x in pxl_lst]
     pxl_mtx = np.stack(pxl_lst, axis=-1)
 
     # DEBUG
