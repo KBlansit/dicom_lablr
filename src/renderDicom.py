@@ -8,6 +8,7 @@ import datetime
 
 import numpy as np
 import pandas as pd
+import deepdish as dd
 import matplotlib as mpl
 
 from matplotlib import pyplot, cm, path, patches
@@ -52,7 +53,6 @@ mpl.rcParams['keymap.all_axes'] = ''
 # main class
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path, previous_path=None):
-
         # import settings
         settings = import_anatomic_settings(settings_path)
 
@@ -63,33 +63,18 @@ class RenderDicomSeries:
 
         # set roi_landmarks
         if "roi_landmarks" in settings:
-
             # filter roi landmarks
             roi_lst = []
-
+            point_lst = []
             for lndmrk in self.locations_markers.values():
                 if REGEX_PARSE.search(lndmrk).group() in settings["roi_landmarks"]:
                     roi_lst.append(lndmrk)
-
-            # set indicies dict
-            self.roi_verts = dict(zip(
-                roi_lst,
-                len(roi_lst) * [None],
-            ))
-
-            # set area dict
-            self.roi_measurements = dict(zip(
-                settings["roi_landmarks"],
-                len(settings["roi_landmarks"]) * [None],
-            ))
+                else:
+                    point_lst.append(lndmrk)
 
             self.roi_colors = dict(zip(settings["roi_landmarks"], COLOR_MAP))
 
-        else:
-            self.roi_verts = {}
-            self.roi_measurements = {}
-
-
+        # initialize valid location types list
         self.valid_location_types = [v for k,v in self.locations_markers.items()]
 
         # store imputs
@@ -109,54 +94,47 @@ class RenderDicomSeries:
 
         # load data if previous_path specified
         if previous_path is not None:
-            # initialize circ data, bounds, and slice loc dicts
+            # load dictionaries
+            self.data_dict = dd.io.load(previous_path)
+
+            # initialize old circle data
             self.circle_data = {}
             self.roi_data = {}
-            self.roi_bounds = {}
-            self.slice_location = {}
-
-            data_df = pd.read_csv(previous_path + "/data.csv", sep = ",")
-            self.click_df = pd.read_csv(previous_path + "/timestamps.csv", sep = ",")
-
-            # loop through rows
-            for index, row in data_df.iterrows():
-                # select curr markere
-                curr_marker = row['location']
-
-                # test if we actually have data
-                if not row[["x", "y", "img_slice"]].isnull().sum():
-
-                    # add circle data
-                    curr_xy = row[["x", "y"]]
-                    curr_radius = row["roi_xy_rad"] if not np.isnan(row["roi_xy_rad"]) else 1
-                    curr_fill = np.isnan(row["roi_xy_rad"])
-                    circ = Circle((curr_xy), curr_radius, edgecolor='red', fill=curr_fill)
-
-                    self.circle_data[curr_marker] = circ
-                    self.circle_data[curr_marker].PLOTTED = False
+            for lndmrk, loc in self.data_dict["point_locations"].items():
+                if loc:
+                    circ = Circle((loc), 1, edgecolor='red', fill=curr_fill)
+                    self.circle_data[lndmrk] = circ
+                    self.circle_data[lndmrk].PLOTTED = False
                     self.ax.add_patch(circ)
+            for lndmrk, verts in self.data_dict["vert_data"].items():
+                if verts:
+                    ver_path = path.Path(verts)
+                    self.roi_data[lndmrk] = ver_path
+                    self.ax.add_patch(ver_path)
 
-                    # add bounding data
-                    self.roi_bounds[curr_marker] = row["roi_bounds"]
-
-                    # add slice loc data
-                    self.slice_location[curr_marker] = row['img_slice']
-
-                # else set values to none
-                else:
-                    self.circle_data[curr_marker] = None
-                    self.roi_bounds[curr_marker] = None
-                    self.slice_location[curr_marker] = None
-
-        # set all markers to none
         else:
-            self.circle_data = {x: None for x in self.valid_location_types}
-            self.roi_data = {x:None for x in roi_lst}
-            self.roi_bounds = {x: None for x in self.valid_location_types}
-            self.slice_location = {x: None for x in self.valid_location_types}
+            # initialize data dict
+            self.data_dict = {
+                # all
+                "slice_location": dict(zip(point_lst+roi_lst, [None for x in point_lst+roi_lst])),
+                # point
+                "point_locations": dict(zip(point_lst, [None for x in point_lst])),
+                # roi
+                "vert_data": dict(zip(roi_lst, [None for x in roi_lst])),
+                "roi_bounds": dict(zip(roi_lst, [None for x in roi_lst])),
+                "roi_measurements": dict(zip(settings["roi_landmarks"], [None for x in settings["roi_landmarks"]])),
+            }
 
-            # initialize monitering dataframe
-            self.click_df = pd.DataFrame(columns = ['timestamp', 'selection', 'type'])
+            # initialize old circle data
+            self.circle_data = dict(zip(point_lst, [None for x in point_lst]))
+            self.roi_data = dict(zip(roi_lst, [None for x in roi_lst]))
+
+        ####
+        #self.circle_data = {}
+        #self.roi_data = {}
+        #self.data_dict["roi_bounds"] = {}
+        #self.data_dict["slice_location"] = {}
+        ####
 
         # finish initialiazation
         self._update_image(self.curr_idx)
@@ -199,38 +177,13 @@ class RenderDicomSeries:
     def return_data(self):
         """
         OUTPUT:
-            a pandas dataframe of the coordinates
+            returns data dict
         """
-        # initialize df
-        df = pd.DataFrame(columns = ["x", "y", "img_slice", "location", "rad", "z_len"])
+        # get dicom acc id
+        self.data_dict["acc_num"] = self.dicom_lst[0].AccessionNumber
 
-        # iterate through anatomic types
-        for location in self.valid_location_types:
-            if self.circle_data[location] is None:
-                x, y, img_slice, roi_xy_rad, roi_bounds = [[np.nan]] * 5
-            else:
-                x, y = self.circle_data[location].center
-                img_slice = self.slice_location[location]
-                x, y, img_slice = [x], [y], [img_slice]
-
-                # for ROI markers
-                if location in self.roi_data:
-                    roi_xy_rad = self.circle_data[location].radius
-                    roi_bounds = self.roi_bounds[location]
-                else:
-                    roi_xy_rad, roi_bounds = ([np.nan], [np.nan])
-
-            tmp_df = pd.DataFrame({
-                'x': x,
-                'y': y,
-                'img_slice': img_slice,
-                'location': location,
-                'roi_xy_rad': roi_xy_rad,
-                'roi_bounds': roi_bounds,
-            })
-            df = df.append(tmp_df)
-
-        return df, self.click_df
+        # return
+        return self.data_dict
 
     def _update_image(self, new_idx):
         """
@@ -253,7 +206,7 @@ class RenderDicomSeries:
 
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
-            if self.slice_location[x] == new_idx:
+            if self.data_dict["slice_location"][x] == new_idx:
                 if x in self.roi_data.keys():
                     if self.roi_data[x] is not None:
                         self.roi_data[x].set_visible(True)
@@ -261,7 +214,7 @@ class RenderDicomSeries:
                     self.circle_data[x].set_visible(True)
             elif self._eval_roi_bounds(x) and self.roi_data[x] is not None:
                 self.roi_data[x].set_visible(True)
-            elif self.slice_location[x] == None:
+            elif self.data_dict["slice_location"][x] == None:
                 pass
             elif x in self.roi_data.keys():
                 if self.roi_data[x] is not None:
@@ -289,14 +242,14 @@ class RenderDicomSeries:
             # do for keys
             for curr_k in [x for x in self.roi_data.keys() if x.startswith(curr_roi)]:
                 # test if curr key has been used
-                if not self.roi_verts[curr_k] is None:
+                if not self.data_dict["vert_data"][curr_k] is None:
 
                     # get current roi
-                    roi_path_indx = self.roi_verts[curr_k]
+                    roi_path_indx = self.data_dict["vert_data"][curr_k]
 
                     # get slice ranges
-                    curr_bounds = self.roi_bounds[curr_k]
-                    curr_loc = self.slice_location[curr_k]
+                    curr_bounds = self.data_dict["roi_bounds"][curr_k]
+                    curr_loc = self.data_dict["slice_location"][curr_k]
 
                     slice_range = (
                         max(0, curr_loc - curr_bounds),
@@ -323,7 +276,7 @@ class RenderDicomSeries:
                 ca_score = None
 
             # save score
-            self.roi_measurements[curr_roi] = ca_score
+            self.data_dict["roi_measurements"][curr_roi] = ca_score
 
     def _on_click(self, event):
         """
@@ -354,13 +307,11 @@ class RenderDicomSeries:
             roi_bounds = None
 
             # test if already populated data to reset
-            if self.circle_data[self.curr_selection] is not None:
-                # get old circle radius data
-                roi_xy_rad = self.circle_data[self.curr_selection].radius
-                roi_bounds = self.roi_bounds[self.curr_selection]
+            if self.curr_selection in self.circle_data:
+                if self.circle_data[self.curr_selection] is not None:
 
-                # remove old circle
-                self.circle_data[self.curr_selection].remove()
+                    # remove old circle
+                    self.circle_data[self.curr_selection].remove()
 
             # create circle object
             if not self.curr_selection in self.roi_data.keys():
@@ -371,15 +322,7 @@ class RenderDicomSeries:
                 self.ax.add_patch(circ)
 
                 # add slice_location and circle location information
-                self.slice_location[self.curr_selection] = self.curr_idx
-
-                # add click information to dataframe
-                self.click_df = self.click_df.append(pd.DataFrame({
-                    'timestamp':[datetime.datetime.now()],
-                    'selection':[self.curr_selection],
-                    'type': 'add'
-                })).reindex()
-
+                self.data_dict["slice_location"][self.curr_selection] = self.curr_idx
 
             # draw image
             self.ax.figure.canvas.draw()
@@ -521,7 +464,7 @@ class RenderDicomSeries:
 
             # save verts indicies
             ver_path = path.Path(verts)
-            self.roi_verts[self.curr_selection] = ver_path
+            self.data_dict["vert_data"][self.curr_selection] = ver_path
 
             # save patch
             curr_class = REGEX_PARSE.search(self.curr_selection).group()
@@ -531,8 +474,8 @@ class RenderDicomSeries:
             self.ax.add_patch(patch)
 
             # add slice_location and circle location information
-            self.slice_location[self.curr_selection] = self.curr_idx
-            self.roi_bounds[self.curr_selection] = DEFAULT_Z_AROUND_CENTER
+            self.data_dict["slice_location"][self.curr_selection] = self.curr_idx
+            self.data_dict["roi_bounds"][self.curr_selection] = DEFAULT_Z_AROUND_CENTER
 
             # update image
             self._update_image(self.curr_idx)
@@ -555,11 +498,11 @@ class RenderDicomSeries:
         elif self.curr_selection not in self.roi_data.keys():
             return
         # don't change if we have less than zero slices
-        elif self.roi_bounds[self.curr_selection] + direction < 0:
+        elif self.data_dict["roi_bounds"][self.curr_selection] + direction < 0:
             return
         else:
-            self.roi_bounds[self.curr_selection] =\
-                self.roi_bounds[self.curr_selection] + direction
+            self.data_dict["roi_bounds"][self.curr_selection] =\
+                self.data_dict["roi_bounds"][self.curr_selection] + direction
 
             # update image
             self._update_image(self.curr_idx)
@@ -574,16 +517,19 @@ class RenderDicomSeries:
                 the current anatomic location
         RETURN:
             True if and only if:
-                - if location is in roi_landmarks list
+                - if location is in roi_data list
                 - roi_bounds[location][1] is not none
                 - slice is actuall within bounds
             False otherwise
         """
-        curr_bounds = self.roi_bounds[location]
-        curr_loc = self.slice_location[location]
+        if location in self.roi_data:
+            curr_bounds = self.data_dict["roi_bounds"][location]
+            curr_loc = self.data_dict["slice_location"][location]
+        else:
+            return False
 
         # test to see if location is wihtin roi_landmarks
-        if not REGEX_PARSE.search(location).group() in self.roi_measurements:
+        if not REGEX_PARSE.search(location).group() in self.data_dict["roi_measurements"]:
             return False
         elif curr_bounds == None or curr_loc == None:
             return False
@@ -605,8 +551,8 @@ class RenderDicomSeries:
             if self.curr_selection in self.roi_data:
                 if self.roi_data[self.curr_selection] is not None:
                     # get vars
-                    curr_loc = self.slice_location[self.curr_selection]
-                    curr_bounds = self.roi_bounds[self.curr_selection]
+                    curr_loc = self.data_dict["slice_location"][self.curr_selection]
+                    curr_bounds = self.data_dict["roi_bounds"][self.curr_selection]
 
                     # get max and min slice
                     min_slice = max(0, curr_loc - curr_bounds)
@@ -622,8 +568,8 @@ class RenderDicomSeries:
                 curr_roi = REGEX_PARSE.search(self.curr_selection).group()
 
                 # test if roi has a measurement
-                if self.roi_measurements[curr_roi]:
-                    curr_ca = str(round(self.roi_measurements[curr_roi]))
+                if self.data_dict["roi_measurements"][curr_roi]:
+                    curr_ca = str(round(self.data_dict["roi_measurements"][curr_roi]))
                     ca_str = " [Ag: {}]".format(curr_ca)
                 else:
                     ca_str = ""
@@ -633,7 +579,7 @@ class RenderDicomSeries:
 
             elif self.curr_selection in self.circle_data:
                 if self.circle_data[self.curr_selection] is not None:
-                    slice_loc_str = " [slice - {}]".format(str(self.slice_location[self.curr_selection]))
+                    slice_loc_str = " [slice - {}]".format(str(self.data_dict["slice_location"][self.curr_selection]))
                 else:
                     slice_loc_str = ""
 
@@ -655,7 +601,7 @@ class RenderDicomSeries:
         if self.curr_selection is None:
             return
         # return if slice location not valid
-        elif self.slice_location[self.curr_selection] == None:
+        elif self.data_dict["slice_location"][self.curr_selection] == None:
             return
 
         # test if it's an roi
@@ -664,7 +610,7 @@ class RenderDicomSeries:
             if self.roi_data[self.curr_selection] is not None:
                 self.roi_data[self.curr_selection].remove()
                 self.roi_data[self.curr_selection] = None
-                self.roi_verts[self.curr_selection] = None
+                self.data_dict["vert_data"][self.curr_selection] = None
             else:
                 return
 
@@ -677,16 +623,9 @@ class RenderDicomSeries:
                 self.circle_data[self.curr_selection] = None
 
                 # remove slice location
-                self.slice_location[self.curr_selection] =  None
+                self.data_dict["slice_location"][self.curr_selection] =  None
             else:
                 return
-
-        # add click information to dataframe
-        self.click_df = self.click_df.append(pd.DataFrame({
-            'timestamp':[datetime.datetime.now()],
-            'selection':[self.curr_selection],
-            'type': 'remove'
-        })).reindex()
 
         # update measurements
         self._update_attenuation()
@@ -765,7 +704,7 @@ class RenderDicomSeries:
         """
         pyplot.close()
 
-def plotDicom(dicom_lst, cmd_args, previous_directory=None):
+def plotDicom(dicom_lst, settings_path, previous_directory=None):
     """
     INPUTS:
         dicom:
@@ -786,9 +725,9 @@ def plotDicom(dicom_lst, cmd_args, previous_directory=None):
 
     # connect to function
     if previous_directory is None:
-        dicomRenderer = RenderDicomSeries(ax, dicom_lst, cmd_args.settings)
+        dicomRenderer = RenderDicomSeries(ax, dicom_lst, settings_path)
     else:
-        dicomRenderer = RenderDicomSeries(ax, dicom_lst, cmd_args.settings, previous_directory)
+        dicomRenderer = RenderDicomSeries(ax, dicom_lst, settings_path, previous_directory)
 
     dicomRenderer.connect()
     pyplot.show()
@@ -797,7 +736,4 @@ def plotDicom(dicom_lst, cmd_args, previous_directory=None):
     dicomRenderer.disconnect()
 
     # save data
-    out_data, click_df = dicomRenderer.return_data()
-    out_data = out_data[['location', 'x', 'y', 'img_slice', 'roi_xy_rad', 'roi_bounds']]
-
-    return out_data, click_df
+    return dicomRenderer.return_data()
