@@ -25,7 +25,6 @@ def main():
     cmd_parse.add_argument('-s', '--settings_path', help = 'path for settings file', type=str)
     cmd_parse.add_argument('-p', '--path', help = 'path for input dicom files', type=str)
     cmd_parse.add_argument('-v', '--save_path', help = 'save path for data', type=str)
-    cmd_parse.add_argument('-o', '--old_data_path', help = 'path for old data', type=str)
     cmd_args = cmd_parse.parse_args()
 
     # check command line args
@@ -60,16 +59,19 @@ def main():
         input_path = data['input_path']
 
     # import dicom
-    dicom_obj = import_dicom(input_path)
+    dicom_lst = import_dicom(input_path)
 
-    # get study id
-    study_id = os.path.relpath(input_path)
+    # make annotation out path
+    save_path = os.path.join(cmd_args.save_path, dicom_lst[0].AccessionNumber + ".hd")
+
+    # test to see if old annotation exists
+    if os.path.exists(save_path):
+        old_data_path = save_path
+    else:
+        old_data_path = None
 
     # plot and get data
-    rslt_data = plotDicom(dicom_obj, cmd_args.settings_path, cmd_args.old_data_path)
-
-    # save data
-    save_path = os.path.join(cmd_args.save_path, rslt_data["acc_num"] + ".hd")
+    rslt_data = plotDicom(dicom_lst, cmd_args.settings_path, old_data_path)
 
     # supress warnings
     with warnings.catch_warnings():

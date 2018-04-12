@@ -141,13 +141,6 @@ class RenderDicomSeries:
             self.circle_data = dict(zip(point_lst, [None for x in point_lst]))
             self.roi_data = dict(zip(roi_lst, [None for x in roi_lst]))
 
-        ####
-        #self.circle_data = {}
-        #self.roi_data = {}
-        #self.data_dict["roi_bounds"] = {}
-        #self.data_dict["slice_location"] = {}
-        ####
-
         # finish initialiazation
         self._update_image(self.curr_idx)
 
