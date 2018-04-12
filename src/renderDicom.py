@@ -18,7 +18,7 @@ from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
-from src.process_calcium import get_calcium_score
+from src.process_calcium import get_calcium_measurements
 from src.process_roi import get_roi_indicies
 
 # global messages
@@ -133,7 +133,8 @@ class RenderDicomSeries:
                 # roi
                 "vert_data": dict(zip(roi_lst, [None for x in roi_lst])),
                 "roi_bounds": dict(zip(roi_lst, [None for x in roi_lst])),
-                "roi_measurements": dict(zip(settings["roi_landmarks"], [None for x in settings["roi_landmarks"]])),
+                "ca_score": dict(zip(settings["roi_landmarks"], [None for x in settings["roi_landmarks"]])),
+                "ca_vol": dict(zip(settings["roi_landmarks"], [None for x in settings["roi_landmarks"]])),
             }
 
             # initialize old circle data
@@ -287,12 +288,16 @@ class RenderDicomSeries:
             # do if we have indicies
             # get calcium score
             if len(roi_indx_lst):
-                ca_score = get_calcium_score(roi_indx_lst, self.dicom_lst)
+                scores = get_calcium_measurements(roi_indx_lst, self.dicom_lst)
+                ca_score = scores[0]
+                ca_vol = scores[1]
             else:
                 ca_score = None
+                ca_vol = None
 
             # save score
-            self.data_dict["roi_measurements"][curr_roi] = ca_score
+            self.data_dict["ca_score"][curr_roi] = ca_score
+            self.data_dict["ca_vol"][curr_roi] = ca_vol
 
     def _on_click(self, event):
         """
@@ -546,7 +551,9 @@ class RenderDicomSeries:
             return False
 
         # test to see if location is wihtin roi_landmarks
-        if not REGEX_PARSE.search(location).group() in self.data_dict["roi_measurements"]:
+        if not REGEX_PARSE.search(location).group() in self.data_dict["ca_score"]:
+            return False
+        elif not REGEX_PARSE.search(location).group() in self.data_dict["ca_vol"]:
             return False
         elif curr_bounds == None or curr_loc == None:
             return False
@@ -585,23 +592,20 @@ class RenderDicomSeries:
                 curr_roi = REGEX_PARSE.search(self.curr_selection).group()
 
                 # test if roi has a measurement
-                if self.data_dict["roi_measurements"][curr_roi]:
-                    curr_ca = str(round(self.data_dict["roi_measurements"][curr_roi]))
-                    ca_str = " [Ag: {}]".format(curr_ca)
+                if self.data_dict["ca_score"][curr_roi] and self.data_dict["ca_vol"][curr_roi]:
+                    curr_ca = str(round(self.data_dict["ca_score"][curr_roi]))
+                    curr_vol = str(round(self.data_dict["ca_vol"][curr_roi]))
+                    ca_str = " [Ag: {}, Vol: {}]".format(curr_ca, curr_vol)
                 else:
                     ca_str = ""
 
                 slice_loc_str = "{}{}".format(slice_loc_str, ca_str)
-
 
             elif self.curr_selection in self.circle_data:
                 if self.circle_data[self.curr_selection] is not None:
                     slice_loc_str = " [slice - {}]".format(str(self.data_dict["slice_location"][self.curr_selection]))
                 else:
                     slice_loc_str = ""
-            else:
-                print("ERRR \n\n\n")
-                import pdb; pdb.set_trace()
 
             usr_msg = "Current selection: {}{}".format(self.curr_selection, slice_loc_str)
 

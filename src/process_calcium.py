@@ -134,7 +134,7 @@ def mask_matrix(mtx, roi_indx_lst):
     # returns matrix
     return mskd_mtx
 
-def get_calcium_score(roi_indx_lst, dicom_lst, debug=False):
+def get_calcium_measurements(roi_indx_lst, dicom_lst, debug=False):
     """
     INPUTS:
         roi_indx_lst:
@@ -161,37 +161,41 @@ def get_calcium_score(roi_indx_lst, dicom_lst, debug=False):
 
     # mask matrix
     msk_mtx = mask_matrix(pxl_mtx, roi_indx_lst)
-    
+
     # mask below min houndsfield threshold
     msk_mtx[np.where(msk_mtx < HOUNSFIELD_1_MIN)] = 0
 
     # get pixel spacing
     px_spacing = np.prod(dicom_lst[0].PixelSpacing)
 
+    # get pixel spacing
+    space_between_pxls = float(dicom_lst[0][0x0018, 0x0088].value)
+
     # get calcium score
     ca_score = get_agatston_score(msk_mtx.copy(), px_spacing)
 
-    return ca_score
+    # get volume
+    ca_vol = calculate_calcium_volume(msk_mtx.copy(), px_spacing, space_between_pxls)
 
-def calculate_calcium_volume(dicom_lst, vld_roi_indx, roi_slice, roi_bounds):
+    return ca_score, ca_vol
+
+def calculate_calcium_volume(mskd_mtx, pixel_spacing, space_between_pxls):
     """
     INPUT:
-        dicom_lst:
-            the list of dicom objects
-        vld_roi_indx:
-            the valid indicies for the ROI
-        roi_slice:
-            the slice that the roi is centered upon
-        roi_bounds:
-            the extend of the slices within the roi
+        mskd_mtx:
+            masked matrix where values below 130 supressed
+        pixel_spacing:
+            the product of pixel spacing from dicom
+        space_between_pxls:
+            the space between each slice
     OUTPUT:
         the total volume (in mm^3) of calcium
     """
-    # get subset of dicom files
-    curr_dicom_lst = subset_dicom_lst(dicom_lst, roi_slice, roi_bounds)
+    # calculate number of voxels
+    num_vox = np.count_nonzero(mskd_mtx)
 
-    # get area of slices above HOUNSFIELD_1_MIN
-    total_area = np.array([calculate_slice_area(x, vld_roi_indx) for x in curr_dicom_lst])
+    # volume
+    vol_vox = pixel_spacing * space_between_pxls
 
-    # get volume
-    total_volume = total_area.sum() * curr_dicom_lst[0].SliceThickness
+    # calculate volume
+    return num_vox * vol_vox
