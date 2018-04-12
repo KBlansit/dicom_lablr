@@ -6,6 +6,7 @@ import re
 import yaml
 import dicom
 import argparse
+import warnings
 
 import deepdish as dd
 
@@ -67,21 +68,13 @@ def main():
     # plot and get data
     rslt_data = plotDicom(dicom_obj, cmd_args.settings_path, cmd_args.old_data_path)
 
-    # reformat data
-    for data_name, curr_sub_dict in rslt_data.items():
-        # only do for dicts
-        if type(curr_sub_dict) is dict:
-            # iterare over keys
-            for curr_key, val in curr_sub_dict.items():
-                # only for those with a dash
-                if DASH_REGEX.search(curr_key):
-                    # remove old name and replace
-                    del curr_sub_dict[curr_key]
-                    curr_sub_dict[DASH_REGEX.sub("", curr_key)] = val
-
     # save data
     save_path = os.path.join(cmd_args.save_path, rslt_data["acc_num"] + ".hd")
-    dd.io.save(save_path, rslt_data)
+
+    # supress warnings
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        dd.io.save(save_path, rslt_data)
 
 if __name__ == '__main__':
     main()

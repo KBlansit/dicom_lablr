@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 # import libraries
+import re
 import sys
 import math
 import dicom
@@ -49,6 +50,8 @@ mpl.rcParams['keymap.grid'] = ''
 mpl.rcParams['keymap.yscale'] = ''
 mpl.rcParams['keymap.xscale'] = ''
 mpl.rcParams['keymap.all_axes'] = ''
+
+KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 
 # main class
 class RenderDicomSeries:
@@ -102,15 +105,23 @@ class RenderDicomSeries:
             self.roi_data = {}
             for lndmrk, loc in self.data_dict["point_locations"].items():
                 if loc:
-                    circ = Circle((loc), 1, edgecolor='red', fill=curr_fill)
+                    circ = Circle((loc), 1, edgecolor='red', fill=True)
                     self.circle_data[lndmrk] = circ
                     self.circle_data[lndmrk].PLOTTED = False
                     self.ax.add_patch(circ)
-            for lndmrk, verts in self.data_dict["vert_data"].items():
-                if verts:
-                    ver_path = path.Path(verts)
-                    self.roi_data[lndmrk] = ver_path
-                    self.ax.add_patch(ver_path)
+                else:
+                    self.circle_data[lndmrk] = None
+
+            for curr_roi, ver_path in self.data_dict["vert_data"].items():
+                if ver_path:
+                    curr_class = REGEX_PARSE.search(curr_roi).group()
+                    curr_color = self.roi_colors[curr_class]
+                    patch = patches.PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
+                    self.roi_data[curr_roi] = patch
+                    patch.set_visible(False)
+                    self.ax.add_patch(patch)
+                else:
+                    self.roi_data[curr_roi] = None
 
         else:
             # initialize data dict
@@ -206,12 +217,17 @@ class RenderDicomSeries:
 
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
+            if 'RCA - 3' not in self.data_dict["slice_location"]:
+                import pdb; pdb.set_trace()
+
             if self.data_dict["slice_location"][x] == new_idx:
                 if x in self.roi_data.keys():
                     if self.roi_data[x] is not None:
                         self.roi_data[x].set_visible(True)
                 else:
-                    self.circle_data[x].set_visible(True)
+                    #import pdb; pdb.set_trace()
+                    if self.circle_data[x] is not None:
+                        self.circle_data[x].set_visible(True)
             elif self._eval_roi_bounds(x) and self.roi_data[x] is not None:
                 self.roi_data[x].set_visible(True)
             elif self.data_dict["slice_location"][x] == None:
@@ -323,6 +339,7 @@ class RenderDicomSeries:
 
                 # add slice_location and circle location information
                 self.data_dict["slice_location"][self.curr_selection] = self.curr_idx
+                self.data_dict["point_locations"][self.curr_selection] = (event.xdata, event.ydata)
 
             # draw image
             self.ax.figure.canvas.draw()
@@ -582,6 +599,9 @@ class RenderDicomSeries:
                     slice_loc_str = " [slice - {}]".format(str(self.data_dict["slice_location"][self.curr_selection]))
                 else:
                     slice_loc_str = ""
+            else:
+                print("ERRR \n\n\n")
+                import pdb; pdb.set_trace()
 
             usr_msg = "Current selection: {}{}".format(self.curr_selection, slice_loc_str)
 
