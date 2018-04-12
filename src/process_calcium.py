@@ -168,7 +168,7 @@ def get_calcium_measurements(roi_indx_lst, dicom_lst, debug=False):
     # get pixel spacing
     px_spacing = np.prod(dicom_lst[0].PixelSpacing)
 
-    # get pixel spacing
+    # get space between slices
     space_between_pxls = float(dicom_lst[0][0x0018, 0x0088].value)
 
     # get calcium score

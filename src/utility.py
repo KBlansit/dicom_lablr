@@ -92,6 +92,10 @@ def import_dicom(input_path):
     # sort list
     dicom_obj = sort_dicom_list(dicom_lst)
 
+    # test that we have space between slices
+    if not hasattr(dicom_lst[0], "SpacingBetweenSlices"):
+        raise AttributeError("Dicom seires {} does not have SpacingBetweenSlices!")
+
     return dicom_obj
 
 def save_output(input_path, case_id, out_data, click_df, cmd_args, replace):
