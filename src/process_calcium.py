@@ -35,65 +35,6 @@ def rescale_dicom(curr_dicom):
     # return
     return img
 
-def get_max_hounsfield(roi_mtx):
-    """
-    INPUT:
-        roi_mtx:
-            the masked out non-ROI matrix
-    OUTPUT:
-        the mapped peak houndsfield (1, 2, 3, 4) or None if below threshold
-    """
-    # get maximum value
-    roi_max = roi_mtx.max()
-
-    if roi_max < HOUNSFIELD_1_MIN:
-        return None
-    elif roi_max >= HOUNSFIELD_1_MIN and roi_max < HOUNSFIELD_2_MIN:
-        return 1
-    elif roi_max >= HOUNSFIELD_2_MIN and roi_max < HOUNSFIELD_3_MIN:
-        return 2
-    elif roi_max >= HOUNSFIELD_3_MIN and roi_max < HOUNSFIELD_4_MIN:
-        return 3
-    elif roi_max >= HOUNSFIELD_4_MIN:
-        return 4
-
-def get_agatston_score(mskd_mtx, pixel_spacing):
-    """
-    INPUTS:
-        mskd_mtx:
-            masked matrix where values below 130 supressed
-        pixel_spacing:
-            the product of pixel spacing from dicom
-    OUTPUT:
-        the calculated total calcium
-    """
-
-    # initialize total_calcium
-    total_calcium = 0
-
-    # get calcium score
-    for curr_slice_indx in range(mskd_mtx.shape[-1]):
-        # get current slice
-        curr_slice = mskd_mtx[:, :, curr_slice_indx]
-
-        # count non zero vals
-        pxls = np.count_nonzero(curr_slice)
-
-        # get area
-        area = pxls * pixel_spacing
-
-        # get max houndsfield
-        mx_hu = get_max_hounsfield(curr_slice)
-
-        # ignore if below 1 mm^2
-        if area > 1 and mx_hu:
-
-            # add to total calcium
-            total_calcium = total_calcium + (area * mx_hu)
-
-    # return
-    return total_calcium
-
 def mask_matrix(mtx, roi_indx_lst):
     """
     INPUTS:
@@ -134,6 +75,86 @@ def mask_matrix(mtx, roi_indx_lst):
     # returns matrix
     return mskd_mtx
 
+def get_max_hounsfield(roi_mtx):
+    """
+    INPUT:
+        roi_mtx:
+            the masked out non-ROI matrix
+    OUTPUT:
+        the mapped peak houndsfield (1, 2, 3, 4) or None if below threshold
+    """
+    # get maximum value
+    roi_max = roi_mtx.max()
+
+    if roi_max < HOUNSFIELD_1_MIN:
+        return None
+    elif roi_max >= HOUNSFIELD_1_MIN and roi_max < HOUNSFIELD_2_MIN:
+        return 1
+    elif roi_max >= HOUNSFIELD_2_MIN and roi_max < HOUNSFIELD_3_MIN:
+        return 2
+    elif roi_max >= HOUNSFIELD_3_MIN and roi_max < HOUNSFIELD_4_MIN:
+        return 3
+    elif roi_max >= HOUNSFIELD_4_MIN:
+        return 4
+
+def get_agatston_score(mskd_mtx, px_area):
+    """
+    INPUTS:
+        mskd_mtx:
+            masked matrix where values below 130 supressed
+        pixel_spacing:
+            the product of pixel spacing from dicom
+    OUTPUT:
+        the calculated total calcium
+    """
+
+    # initialize total_calcium
+    total_calcium = 0
+
+    # get calcium score
+    for curr_slice_indx in range(mskd_mtx.shape[-1]):
+        # get current slice
+        curr_slice = mskd_mtx[:, :, curr_slice_indx]
+
+        # count non zero vals
+        pxls = np.count_nonzero(curr_slice)
+
+        # get area
+        area = pxls * px_area
+
+        # get max houndsfield
+        mx_hu = get_max_hounsfield(curr_slice)
+
+        # ignore if below 1 mm^2
+        if area > 1 and mx_hu:
+
+            # add to total calcium
+            total_calcium = total_calcium + (area * mx_hu)
+
+    # return
+    return total_calcium
+
+def calculate_calcium_volume(mskd_mtx, pixel_spacing, slice_thickness):
+    """
+    INPUT:
+        mskd_mtx:
+            masked matrix where values below 130 supressed
+        pixel_spacing:
+            the product of pixel spacing from dicom
+        space_between_slices:
+            the space between each slice
+    OUTPUT:
+        the total volume (in mm^3) of calcium
+    """
+    # calculate number of voxels
+    num_vox = np.count_nonzero(mskd_mtx)
+
+    # volume
+    vol_vox = pixel_spacing * slice_thickness
+
+    # calculate volume
+    return num_vox * vol_vox
+
 def get_calcium_measurements(roi_indx_lst, dicom_lst, debug=False):
     """
     INPUTS:
@@ -166,36 +187,15 @@ def get_calcium_measurements(roi_indx_lst, dicom_lst, debug=False):
     msk_mtx[np.where(msk_mtx < HOUNSFIELD_1_MIN)] = 0
 
     # get pixel spacing
-    px_spacing = np.prod(dicom_lst[0].PixelSpacing)
+    px_area = np.prod(dicom_lst[0].PixelSpacing)
 
     # get space between slices
-    space_between_pxls = abs(float(dicom_lst[0][0x0018, 0x0088].value))
+    slice_thickness = abs(float(dicom_lst[0][0x0018, 0x0050].value))
 
     # get calcium score
-    ca_score = get_agatston_score(msk_mtx.copy(), px_spacing)
+    ca_score = get_agatston_score(msk_mtx.copy(), px_area)
 
     # get volume
-    ca_vol = calculate_calcium_volume(msk_mtx.copy(), px_spacing, space_between_pxls)
+    ca_vol = calculate_calcium_volume(msk_mtx.copy(), px_area, slice_thickness)
 
     return ca_score, ca_vol
-
-def calculate_calcium_volume(mskd_mtx, pixel_spacing, space_between_pxls):
-    """
-    INPUT:
-        mskd_mtx:
-            masked matrix where values below 130 supressed
-        pixel_spacing:
-            the product of pixel spacing from dicom
-        space_between_pxls:
-            the space between each slice
-    OUTPUT:
-        the total volume (in mm^3) of calcium
-    """
-    # calculate number of voxels
-    num_vox = np.count_nonzero(mskd_mtx)
-
-    # volume
-    vol_vox = pixel_spacing * space_between_pxls
-
-    # calculate volume
-    return num_vox * vol_vox
