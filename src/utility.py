@@ -93,8 +93,8 @@ def import_dicom(input_path):
     dicom_obj = sort_dicom_list(dicom_lst)
 
     # test that we have space between slices
-    if not hasattr(dicom_lst[0], "SpacingBetweenSlices"):
-        raise AttributeError("Dicom seires {} does not have SpacingBetweenSlices!")
+    if not hasattr(dicom_lst[0], "SliceThickness"):
+        raise AttributeError("Dicom seires {} does not have SliceThickness!")
 
     return dicom_obj
 
