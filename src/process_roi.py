@@ -7,8 +7,6 @@ import dicom
 import numpy as np
 import pandas as pd
 
-from numpy.linalg import norm
-
 def get_roi_indicies(path_indx, dicom_dims, slice_range):
     """
     INPUT:
