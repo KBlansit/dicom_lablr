@@ -211,9 +211,6 @@ class RenderDicomSeries:
 
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
-            if 'RCA - 3' not in self.data_dict["slice_location"]:
-                import pdb; pdb.set_trace()
-
             if self.data_dict["slice_location"][x] == new_idx:
                 if x in self.roi_data.keys():
                     if self.roi_data[x] is not None:
