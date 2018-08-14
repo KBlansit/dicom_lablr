@@ -216,7 +216,6 @@ class RenderDicomSeries:
                     if self.roi_data[x] is not None:
                         self.roi_data[x].set_visible(True)
                 else:
-                    #import pdb; pdb.set_trace()
                     if self.circle_data[x] is not None:
                         self.circle_data[x].set_visible(True)
             elif self._eval_roi_bounds(x) and self.roi_data[x] is not None:
