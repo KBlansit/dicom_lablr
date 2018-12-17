@@ -466,9 +466,6 @@ class RenderDicomSeries:
             # update image
             self._update_image(self.curr_idx)
 
-            # update measurements
-            self._update_attenuation()
-
     def _eval_roi_bounds(self, location):
         """
         INPUTS:
@@ -573,9 +570,6 @@ class RenderDicomSeries:
                 self.data_dict["slice_location"][self.curr_selection] =  None
             else:
                 return
-
-        # update measurements
-        self._update_attenuation()
 
         # draw image
         self.ax.figure.canvas.draw()
