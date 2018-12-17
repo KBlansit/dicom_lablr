@@ -40,7 +40,7 @@ def read_dicom(path):
     if re.search(".dcm$", path) is not None:
         return dicom.read_file(path, force=True)
 
-def sort_dicom_list(dicom_list):
+def sort_dicom_list(dicom_lst):
     """
     INPUTS:
         dicom_list:
@@ -50,27 +50,28 @@ def sort_dicom_list(dicom_list):
     """
 
     # test that all elements of the list are dicom objects
-    if not all([True if type(x) == dicom.dataset.FileDataset else False for x in dicom_list]):
+    if not all([True if type(x) == dicom.dataset.FileDataset else False for x in dicom_lst]):
         raise AssertionError("Not all elements are dicom images")
 
-    # pop first element to initialize list
-    rslt_dicom_lst = [dicom_list.pop()]
-    rslt_idx = [rslt_dicom_lst[0].InstanceNumber]
+    # sort
+    return sorted(dicom_lst, key=lambda dicom: dicom.InstanceNumber)
 
-    # loop through list
-    for element in dicom_list:
-        # find index
-        idx = bisect.bisect(rslt_idx, element.InstanceNumber)
+def recursive_read_dicom(curr_path):
+    """
+    recursively reads in dicom files from unarchived file
+    """
+    tmp_lst = []
+    for curr_f in os.listdir(curr_path):
+        tmp_path = os.path.join(curr_path, curr_f)
+        if os.path.isdir(tmp_path):
+            tmp_lst = tmp_lst + recursive_read_dicom(tmp_path)
+        else:
+            # read in dicom
+            curr_dicom_f = dicom.read_file(tmp_path)
 
-        # add to lists
-        rslt_dicom_lst.insert(idx, element)
-        rslt_idx.insert(idx, element.InstanceNumber)
+            tmp_lst.append(curr_dicom_f)
 
-    # testing that rslt_idx is sorted (as it shoulf be!)
-    if not sorted(rslt_idx) == rslt_idx:
-        raise AssertionError("Did not sort correctly!")
-
-    return rslt_dicom_lst
+    return tmp_lst
 
 def import_dicom(input_path):
     """
@@ -81,22 +82,13 @@ def import_dicom(input_path):
         sorted dicom object
     """
 
-    # store files and append path
-    dicom_files = os.listdir(input_path)
-    dicom_files = [input_path + "/" + x for x in dicom_files]
+    # read in all dicoms
+    dicom_lst = recursive_read_dicom(input_path)
 
-    # read dicom files
-    dicom_lst = [read_dicom(x) for x in dicom_files]
-    dicom_lst = [x for x in dicom_lst if x is not None]
+    # sort dicoms
+    dicom_lst = sort_dicom_list(dicom_lst)
 
-    # sort list
-    dicom_obj = sort_dicom_list(dicom_lst)
-
-    # test that we have space between slices
-    if not hasattr(dicom_lst[0], "SliceThickness"):
-        raise AttributeError("Dicom seires {} does not have SliceThickness!")
-
-    return dicom_obj
+    return dicom_lst
 
 def save_output(input_path, case_id, out_data, click_df, cmd_args, replace):
     """

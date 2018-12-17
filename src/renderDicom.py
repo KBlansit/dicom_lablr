@@ -12,20 +12,20 @@ import pandas as pd
 import deepdish as dd
 import matplotlib as mpl
 
+from math import floor
 from matplotlib import pyplot, cm, path, patches
 from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
-from src.process_calcium import get_calcium_measurements
 from src.process_roi import get_roi_indicies
 
 # global messages
 INITIAL_USR_MSG = "Please select a anatomic landmark"
 CONTRAST_SCALE = 5
 
-DEFAULT_Z_AROUND_CENTER = 2
+DEFAULT_Z_AROUND_CENTER = 0
 
 COLOR_MAP = [
     "blue",
@@ -89,6 +89,9 @@ class RenderDicomSeries:
         self.curr_idx = 0
         self.scrolling = False
 
+        # determine if we are using a cine series
+        self.cine_series = self.dicom_lst[0].CardiacNumberOfImages
+
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
 
@@ -133,8 +136,6 @@ class RenderDicomSeries:
                 # roi
                 "vert_data": dict(zip(roi_lst, [None for x in roi_lst])),
                 "roi_bounds": dict(zip(roi_lst, [None for x in roi_lst])),
-                "ca_score": dict(zip(settings["roi_landmarks"], [None for x in settings["roi_landmarks"]])),
-                "ca_vol": dict(zip(settings["roi_landmarks"], [None for x in settings["roi_landmarks"]])),
             }
 
             # initialize old circle data
@@ -231,62 +232,6 @@ class RenderDicomSeries:
 
         # update view
         self.ax.figure.canvas.draw()
-
-    def _update_attenuation(self):
-        """
-        EFFECT:
-            updates attenuation measurements
-        """
-        # do only if we are currently on a valid data type
-        if self.curr_selection in self.roi_data.keys():
-            # get curr roi type
-            curr_roi = REGEX_PARSE.search(self.curr_selection).group()
-
-            # initialize roi indx lst
-            roi_indx_lst = []
-
-            # do for keys
-            for curr_k in [x for x in self.roi_data.keys() if x.startswith(curr_roi)]:
-                # test if curr key has been used
-                if not self.data_dict["vert_data"][curr_k] is None:
-
-                    # get current roi
-                    roi_path_indx = self.data_dict["vert_data"][curr_k]
-
-                    # get slice ranges
-                    curr_bounds = self.data_dict["roi_bounds"][curr_k]
-                    curr_loc = self.data_dict["slice_location"][curr_k]
-
-                    slice_range = (
-                        max(0, curr_loc - curr_bounds),
-                        min(len(self.dicom_lst), curr_loc + curr_bounds) + 1,
-                    )
-
-                    # get dims
-                    dicom_dims = self.dicom_lst[0].pixel_array.shape
-
-                    # get roi indicies
-                    curr_indx_lst = get_roi_indicies(roi_path_indx, dicom_dims, slice_range)
-
-                    # add to roi coord arry
-                    roi_indx_lst = roi_indx_lst + curr_indx_lst
-
-            # get unique coords
-            roi_indx_lst = list(set(roi_indx_lst))
-
-            # do if we have indicies
-            # get calcium score
-            if len(roi_indx_lst):
-                scores = get_calcium_measurements(roi_indx_lst, self.dicom_lst)
-                ca_score = scores[0]
-                ca_vol = scores[1]
-            else:
-                ca_score = None
-                ca_vol = None
-
-            # save score
-            self.data_dict["ca_score"][curr_roi] = ca_score
-            self.data_dict["ca_vol"][curr_roi] = ca_vol
 
     def _on_click(self, event):
         """
@@ -420,6 +365,12 @@ class RenderDicomSeries:
         elif event.key == "down":
             self._next_image()
 
+        # advance cine
+        elif event.key == "right":
+            self._advance_cine_forward()
+        elif event.key == "left":
+            self._advance_cine_backward()
+
         # page up and down
         elif event.key == "pageup":
             for _ in range(10):
@@ -491,9 +442,6 @@ class RenderDicomSeries:
             # update image
             self._update_image(self.curr_idx)
 
-            # update measurements
-            self._update_attenuation()
-
     def _change_z_bounds(self, direction):
         """
         INPUT:
@@ -540,11 +488,7 @@ class RenderDicomSeries:
             return False
 
         # test to see if location is wihtin roi_landmarks
-        if not REGEX_PARSE.search(location).group() in self.data_dict["ca_score"]:
-            return False
-        elif not REGEX_PARSE.search(location).group() in self.data_dict["ca_vol"]:
-            return False
-        elif curr_bounds == None or curr_loc == None:
+        if curr_bounds == None or curr_loc == None:
             return False
         elif curr_loc - curr_bounds <= self.curr_idx <= curr_loc + curr_bounds:
             return True
@@ -579,16 +523,6 @@ class RenderDicomSeries:
 
                 # get curr roi type
                 curr_roi = REGEX_PARSE.search(self.curr_selection).group()
-
-                # test if roi has a measurement
-                if self.data_dict["ca_score"][curr_roi] and self.data_dict["ca_vol"][curr_roi]:
-                    curr_ca = str(round(self.data_dict["ca_score"][curr_roi]))
-                    curr_vol = str(round(self.data_dict["ca_vol"][curr_roi]))
-                    ca_str = " [Ag: {}, Vol: {}]".format(curr_ca, curr_vol)
-                else:
-                    ca_str = ""
-
-                slice_loc_str = "{}{}".format(slice_loc_str, ca_str)
 
             elif self.curr_selection in self.circle_data:
                 if self.circle_data[self.curr_selection] is not None:
@@ -651,20 +585,63 @@ class RenderDicomSeries:
         EFFECT:
             advance image
         """
-        if self.curr_idx == len(self.dicom_lst) - 1:
+        if self.cine_series:
+            indx_advance = self.curr_idx + self.cine_series
+        else:
+            indx_advance = self.curr_idx + 1
+
+        if indx_advance >= len(self.dicom_lst) - 1:
             return
 
-        self._update_image(self.curr_idx + 1)
+        self._update_image(indx_advance)
 
     def _prev_image(self):
         """
         EFFECT:
             previous image
         """
-        if self.curr_idx == 0:
+        if self.cine_series:
+            indx_advance = self.curr_idx - self.cine_series
+        else:
+            indx_advance = self.curr_idx - 1
+
+        if indx_advance < 0:
             return
 
-        self._update_image(self.curr_idx - 1)
+        self._update_image(indx_advance)
+
+    def _advance_cine_forward(self):
+        """
+        effect:
+            for dicom series that have cine frames, advances forward a cine frame
+        """
+
+        if not self.cine_series:
+            return
+        else:
+            curr_slice = floor(self.curr_idx/self.cine_series)
+            indx_advance = (curr_slice * self.cine_series) + ((self.curr_idx + 1)% self.cine_series)
+
+        if indx_advance >= len(self.dicom_lst) - 1:
+            return
+
+        self._update_image(indx_advance)
+
+    def _advance_cine_backward(self):
+        """
+        effect:
+            for dicom series that have cine frames, advances backward a cine frame
+        """
+        if not self.cine_series:
+            return
+        else:
+            curr_slice = floor(self.curr_idx/self.cine_series)
+            indx_advance = (curr_slice * self.cine_series) + ((self.curr_idx - 1)% self.cine_series)
+
+        if indx_advance < 0:
+            return
+
+        self._update_image(indx_advance)
 
     def _increase_contrast_window(self, delta):
         """
