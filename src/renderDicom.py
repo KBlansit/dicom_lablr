@@ -13,6 +13,7 @@ import deepdish as dd
 import matplotlib as mpl
 
 from math import floor
+from itertools import product
 from matplotlib import pyplot, cm, path, patches
 from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
@@ -89,14 +90,18 @@ class RenderDicomSeries:
         self.curr_idx = 0
         self.scrolling = False
 
-        # determine if we are using a cine series
-        self.cine_series = self.dicom_lst[0].CardiacNumberOfImages
-
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
 
         # remember default contrast
         self.default_contrast_window = self.im.get_clim()
+
+        # use individual cine frames if possible
+        self.cine_series = int(self.dicom_lst[0].CardiacNumberOfImages)
+        if self.cine_series:
+            cine_point_lst = ["{}_{}".format(x, y) for x, y in product(*[point_lst, range(self.cine_series)])]
+        else:
+            cine_point_lst = [x for x in point_lst]
 
         # load data if previous_path specified
         if previous_path is not None:
@@ -132,14 +137,14 @@ class RenderDicomSeries:
                 # all
                 "slice_location": dict(zip(point_lst+roi_lst, [None for x in point_lst+roi_lst])),
                 # point
-                "point_locations": dict(zip(point_lst, [None for x in point_lst])),
+                "point_locations": dict(zip(cine_point_lst, [None for x in cine_point_lst])),
                 # roi
                 "vert_data": dict(zip(roi_lst, [None for x in roi_lst])),
                 "roi_bounds": dict(zip(roi_lst, [None for x in roi_lst])),
             }
 
             # initialize old circle data
-            self.circle_data = dict(zip(point_lst, [None for x in point_lst]))
+            self.circle_data = dict(zip(cine_point_lst, [None for x in cine_point_lst]))
             self.roi_data = dict(zip(roi_lst, [None for x in roi_lst]))
 
         # finish initialiazation
@@ -191,6 +196,20 @@ class RenderDicomSeries:
         # return
         return self.data_dict
 
+    def _get_cine_and_slice(self, indx):
+        """
+        OUTPUT:
+            returns slice and cine frame
+        """
+        if self.cine_series:
+            cine_frame = indx % self.cine_series
+            slice = floor(indx/self.cine_series)
+        else:
+            cine_frame = 1
+            slice = indx
+
+        return cine_frame, slice
+
     def _update_image(self, new_idx):
         """
         INPUTS:
@@ -210,25 +229,34 @@ class RenderDicomSeries:
         self.x_max = self.ax.get_xlim()[1]
         self.y_max = self.ax.get_ylim()[0]
 
-        # iterate through anatomies to determine if we redraw
-        for x in self.valid_location_types:
-            if self.data_dict["slice_location"][x] == new_idx:
-                if x in self.roi_data.keys():
-                    if self.roi_data[x] is not None:
-                        self.roi_data[x].set_visible(True)
-                else:
-                    if self.circle_data[x] is not None:
-                        self.circle_data[x].set_visible(True)
-            elif self._eval_roi_bounds(x) and self.roi_data[x] is not None:
-                self.roi_data[x].set_visible(True)
-            elif self.data_dict["slice_location"][x] == None:
-                pass
-            elif x in self.roi_data.keys():
-                if self.roi_data[x] is not None:
-                    self.roi_data[x].set_visible(False)
+        #import pdb; pdb.set_trace()
+
+        # get slice and cine frame from index
+        cine_frame, slice = self._get_cine_and_slice(new_idx)
+
+        # render valid rois
+        for k, v in self.circle_data.items():
+            # determine bools
+            correct_slice = self.data_dict["slice_location"][k.split("_")[0]] == slice
+            if self.cine_series:
+                correct_cine = int(k.split("_")[1]) == cine_frame
             else:
-                if self.circle_data[x] is not None:
-                    self.circle_data[x].set_visible(False)
+                correct_cine = True
+
+            # show circle if both are true
+            if v:
+                if correct_cine and correct_slice:
+                    v.set_visible(True)
+                else:
+                    v.set_visible(False)
+
+        # render valid circles
+        for k, v in self.roi_data.items():
+            if v:
+                if self._eval_roi_bounds(x) and self.roi_data[x] is not None:
+                    v.set_visible(True)
+                else:
+                    v.set_visible(False)
 
         # update view
         self.ax.figure.canvas.draw()
@@ -253,32 +281,37 @@ class RenderDicomSeries:
             self.ax.figure.canvas.draw()
 
         elif event.button == 1:
+            cine_frame, slice = self._get_cine_and_slice(self.curr_idx)
+
             # return if nothing is selected
             if self.curr_selection is None:
                 return
+            elif self.cine_series:
+                curr_cine_key = "{}_{}".format(self.curr_selection, cine_frame)
+            else:
+                curr_cine_key = self.curr_selection
 
             # set default xy_circle_rad
             roi_xy_rad = None
-            roi_bounds = None
 
             # test if already populated data to reset
-            if self.curr_selection in self.circle_data:
-                if self.circle_data[self.curr_selection] is not None:
+            if curr_cine_key in self.circle_data:
+                if self.circle_data[curr_cine_key] is not None:
 
                     # remove old circle
-                    self.circle_data[self.curr_selection].remove()
+                    self.circle_data[curr_cine_key].remove()
 
             # create circle object
-            if not self.curr_selection in self.roi_data.keys():
+            if not curr_cine_key in self.roi_data.keys():
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
-                self.circle_data[self.curr_selection] = circ
-                self.circle_data[self.curr_selection].PLOTTED = True
+                self.circle_data[curr_cine_key] = circ
+                self.circle_data[curr_cine_key].PLOTTED = True
                 self.ax.add_patch(circ)
 
                 # add slice_location and circle location information
-                self.data_dict["slice_location"][self.curr_selection] = self.curr_idx
-                self.data_dict["point_locations"][self.curr_selection] = (event.xdata, event.ydata)
+                self.data_dict["slice_location"][self.curr_selection] = slice
+                self.data_dict["point_locations"][curr_cine_key] = (event.xdata, event.ydata)
 
             # draw image
             self.ax.figure.canvas.draw()
@@ -501,6 +534,13 @@ class RenderDicomSeries:
         if self.curr_selection is None:
             usr_msg = INITIAL_USR_MSG
         else:
+            # construct cine key
+            if self.cine_series:
+                cine_frame, slice = self._get_cine_and_slice(self.curr_idx)
+                curr_cine_key = "{}_{}".format(self.curr_selection, cine_frame)
+            else:
+                curr_cine_key = self.curr_selection
+
             # determine if slice has already been set
             if self.curr_selection in self.roi_data:
                 if self.roi_data[self.curr_selection] is not None:
@@ -521,9 +561,9 @@ class RenderDicomSeries:
                 # get curr roi type
                 curr_roi = REGEX_PARSE.search(self.curr_selection).group()
 
-            elif self.curr_selection in self.circle_data:
-                if self.circle_data[self.curr_selection] is not None:
-                    slice_loc_str = " [slice - {}]".format(str(self.data_dict["slice_location"][self.curr_selection]))
+            elif self.curr_selection in set([x.split("_")[0] for x in self.circle_data.keys()]):
+                if self.data_dict["slice_location"][self.curr_selection]:
+                    slice_loc_str = " [slice - {}]".format(str())
                 else:
                     slice_loc_str = ""
 
