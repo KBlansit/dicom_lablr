@@ -21,6 +21,7 @@ from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
 from src.process_roi import get_roi_indicies
+from src.interpolation import cine_interpolate
 
 # global messages
 INITIAL_USR_MSG = "Please select a anatomic landmark"
@@ -30,7 +31,6 @@ DEFAULT_Z_AROUND_CENTER = 0
 
 COLOR_MAP = [
     "blue",
-    "green",
     "orange",
     "red",
     "yellow",
@@ -53,6 +53,11 @@ mpl.rcParams['keymap.xscale'] = ''
 mpl.rcParams['keymap.all_axes'] = ''
 
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
+
+COORD_MAP = {
+    "MARKED": "red",
+    "PREDICTED": "green",
+}
 
 # main class
 class RenderDicomSeries:
@@ -261,6 +266,13 @@ class RenderDicomSeries:
         # update view
         self.ax.figure.canvas.draw()
 
+    def _add_annotation(self, xy_coords):
+        """
+        INPUT:
+            xy_coords:
+                xy tuple for coordinate to be added
+        """
+
     def _on_click(self, event):
         """
         INPUT:
@@ -281,6 +293,7 @@ class RenderDicomSeries:
             self.ax.figure.canvas.draw()
 
         elif event.button == 1:
+            # get current cine frame and slice
             cine_frame, slice = self._get_cine_and_slice(self.curr_idx)
 
             # return if nothing is selected
@@ -303,6 +316,7 @@ class RenderDicomSeries:
 
             # create circle object
             if not curr_cine_key in self.roi_data.keys():
+                # add annotated circle
                 circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
                 self.circle_data[curr_cine_key] = circ
@@ -312,6 +326,44 @@ class RenderDicomSeries:
                 # add slice_location and circle location information
                 self.data_dict["slice_location"][self.curr_selection] = slice
                 self.data_dict["point_locations"][curr_cine_key] = (event.xdata, event.ydata)
+
+                # add predicted interpolated coords
+                if self.cine_series:
+                    # make list of coords and time points
+                    coord_lst = []
+                    time_lst = []
+                    for k, v in self.data_dict["point_locations"].items():
+                        # escape from loop
+                        if not k.split("_")[0] == self.curr_selection:
+                            continue
+                        elif not v:
+                            continue
+
+                        # append time and coords
+                        time_lst.append(int(k.split("_")[1]))
+                        coord_lst.append(v)
+
+                    # make arrays
+                    time_ary = np.array(time_lst)
+                    coord_ary = np.concatenate(coord_lst).reshape(-1, 2)
+
+                    # interpolate
+                    coords, times = cine_interpolate(coord_ary, time_ary)
+
+                    # add predicted values
+                    for i in range(len(times)):
+                        k = "{}_{}".format(self.curr_selection, i)
+
+                        # escape annotated
+                        if self.data_dict["point_locations"][k]:
+                            continue
+
+                        i_circ = Circle((coords[0][i], coords[1][i]), 1, edgecolor='green', fill=True)
+
+                        self.circle_data[k] = i_circ
+                        self.circle_data[k].PLOTTED = True
+                        self.circle_data[k].set_visible(False)
+                        self.ax.add_patch(i_circ)
 
             # draw image
             self.ax.figure.canvas.draw()
