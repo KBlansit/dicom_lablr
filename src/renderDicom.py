@@ -268,70 +268,64 @@ class RenderDicomSeries:
         INPUT:
             curr_selection:
                 the currently selected landmark
-            force:
-                overwrite not marking current point
         EFFECT:
             draws predicted interpolated points
         """
+
         # add predicted interpolated coords
         if self.cine_series:
-            # test to see if we have any actual points
 
-            # make list of coords and time points
-            coord_lst = []
-            time_lst = []
-            for k, v in self.data_dict["point_locations"].items():
-                # escape from loop
-                if not k.split("_")[0] == self.curr_selection:
+            # do for all anatomies
+            for anat in self.valid_location_types:
+
+                # make list of coords and time points
+                coord_lst = []
+                time_lst = []
+                for k, v in self.data_dict["point_locations"].items():
+                    # escape from loop
+                    if not k.split("_")[0] == anat:
+                        continue
+                    elif not v:
+                        continue
+
+                    # append time and coords
+                    time_lst.append(int(k.split("_")[1]))
+                    coord_lst.append(v)
+
+                # if list is empty, then try to remove cirlces
+                if not len(time_lst):
+                    for i in range(self.cine_series):
+                        k = "{}_{}".format(anat, i)
+                        self.circle_data[k] = None
+
+                    # escape
                     continue
-                elif not v:
-                    continue
 
-                # append time and coords
-                time_lst.append(int(k.split("_")[1]))
-                coord_lst.append(v)
+                # make arrays
+                time_ary = np.array(time_lst)
+                coord_ary = np.concatenate(coord_lst).reshape(-1, 2)
 
-            # if list is empty, then try to remove cirlces
-            if not len(time_lst):
-                for i in range(self.cine_series):
-                    k = "{}_{}".format(self.curr_selection, i)
-                    self.circle_data[k] = None
+                # get index and sort
+                indx = np.argsort(time_ary)
+                time_ary = time_ary[indx]
+                coord_ary = coord_ary[indx]
 
-                # escape
-                return
-
-            # make arrays
-            time_ary = np.array(time_lst)
-            coord_ary = np.concatenate(coord_lst).reshape(-1, 2)
-
-            # get index and sort
-            indx = np.argsort(time_ary)
-            time_ary = time_ary[indx]
-            coord_ary = coord_ary[indx]
-
-            # sort
-            np.argsort()
-
-            # interpolate
-            try:
                 coords, times = cine_interpolate(coord_ary, time_ary)
-            except:
-                import pdb; pdb.set_trace()
 
-            # add predicted values
-            for i in range(len(times)):
-                k = "{}_{}".format(self.curr_selection, i)
+                # add predicted values
+                for i in range(len(times)):
+                    k = "{}_{}".format(self.curr_selection, i)
 
-                # escape annotated
-                if self.data_dict["point_locations"][k]:
-                    continue
+                    # escape annotated
+                    if self.data_dict["point_locations"][k]:
+                        continue
 
-                i_circ = Circle((coords[0][i], coords[1][i]), 1, edgecolor='green', fill=True)
+                    i_circ = Circle((coords[0][i], coords[1][i]), 1, edgecolor='green', fill=True)
 
-                self.circle_data[k] = i_circ
-                self.circle_data[k].PLOTTED = True
-                self.circle_data[k].set_visible(False)
-                self.ax.add_patch(i_circ)
+                    self.circle_data[k] = i_circ
+                    self.circle_data[k].PLOTTED = True
+                    self.circle_data[k].set_visible(False)
+                    self.ax.add_patch(i_circ)
 
             # draw image
             self.ax.figure.canvas.draw()
@@ -750,7 +744,7 @@ class RenderDicomSeries:
             curr_slice = floor(self.curr_idx/self.cine_series)
             indx_advance = (curr_slice * self.cine_series) + ((self.curr_idx + 1)% self.cine_series)
 
-        if indx_advance >= len(self.dicom_lst) - 1:
+        if indx_advance > len(self.dicom_lst) - 1:
             return
 
         self._update_image(indx_advance)
