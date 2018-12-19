@@ -4,10 +4,9 @@
 import re
 import os
 import yaml
-import dicom
 import bisect
 import shutil
-
+import pydicom as dicom
 
 import pandas as pd
 

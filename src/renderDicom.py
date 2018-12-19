@@ -4,7 +4,6 @@
 import re
 import sys
 import math
-import dicom
 import datetime
 
 import numpy as np

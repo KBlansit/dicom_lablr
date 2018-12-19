@@ -2,7 +2,6 @@
 
 # import libraries
 import os
-import dicom
 
 import numpy as np
 import pandas as pd
