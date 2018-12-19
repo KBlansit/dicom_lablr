@@ -304,8 +304,19 @@ class RenderDicomSeries:
             time_ary = np.array(time_lst)
             coord_ary = np.concatenate(coord_lst).reshape(-1, 2)
 
+            # get index and sort
+            indx = np.argsort(time_ary)
+            time_ary = time_ary[indx]
+            coord_ary = coord_ary[indx]
+
+            # sort
+            np.argsort()
+
             # interpolate
-            coords, times = cine_interpolate(coord_ary, time_ary)
+            try:
+                coords, times = cine_interpolate(coord_ary, time_ary)
+            except:
+                import pdb; pdb.set_trace()
 
             # add predicted values
             for i in range(len(times)):
