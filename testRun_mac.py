@@ -5,9 +5,9 @@ import os
 
 # define parts of program call
 base_call = 'main.py'
-path_call = '-p data/99752834'
+path_call = '-p data/Asepud_26_SAX_Cine_FIESTA_ASSET'
 settings_call = '-s settings/ex_settings.yaml'
-user_call = '-u KevinTst'
+user_call = '-v output'
 
 # make into a list
 cmd_lst = [
@@ -18,4 +18,4 @@ cmd_lst = [
 ]
 
 # source and run file
-os.system("python " + " ".join(cmd_lst))
+os.system("python3 " + " ".join(cmd_lst))
