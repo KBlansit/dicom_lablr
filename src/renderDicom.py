@@ -265,13 +265,6 @@ class RenderDicomSeries:
         # update view
         self.ax.figure.canvas.draw()
 
-    def _add_annotation(self, xy_coords):
-        """
-        INPUT:
-            xy_coords:
-                xy tuple for coordinate to be added
-        """
-
     def _on_click(self, event):
         """
         INPUT:
@@ -326,43 +319,57 @@ class RenderDicomSeries:
                 self.data_dict["slice_location"][self.curr_selection] = slice
                 self.data_dict["point_locations"][curr_cine_key] = (event.xdata, event.ydata)
 
-                # add predicted interpolated coords
-                if self.cine_series:
-                    # make list of coords and time points
-                    coord_lst = []
-                    time_lst = []
-                    for k, v in self.data_dict["point_locations"].items():
-                        # escape from loop
-                        if not k.split("_")[0] == self.curr_selection:
-                            continue
-                        elif not v:
-                            continue
+                # set green points
+                self._set_interpolated_points(self.curr_selection)
 
-                        # append time and coords
-                        time_lst.append(int(k.split("_")[1]))
-                        coord_lst.append(v)
+            # draw image
+            self.ax.figure.canvas.draw()
 
-                    # make arrays
-                    time_ary = np.array(time_lst)
-                    coord_ary = np.concatenate(coord_lst).reshape(-1, 2)
+    def _set_interpolated_points(self, curr_selection):
+        """
+        INPUT:
+            curr_selection:
+                the currently selected landmark
+        EFFECT:
+            draws predicted interpolated points
+        """
+        # add predicted interpolated coords
+        if self.cine_series:
+            # make list of coords and time points
+            coord_lst = []
+            time_lst = []
+            for k, v in self.data_dict["point_locations"].items():
+                # escape from loop
+                if not k.split("_")[0] == curr_selection:
+                    continue
+                elif not v:
+                    continue
 
-                    # interpolate
-                    coords, times = cine_interpolate(coord_ary, time_ary)
+                # append time and coords
+                time_lst.append(int(k.split("_")[1]))
+                coord_lst.append(v)
 
-                    # add predicted values
-                    for i in range(len(times)):
-                        k = "{}_{}".format(self.curr_selection, i)
+            # make arrays
+            time_ary = np.array(time_lst)
+            coord_ary = np.concatenate(coord_lst).reshape(-1, 2)
 
-                        # escape annotated
-                        if self.data_dict["point_locations"][k]:
-                            continue
+            # interpolate
+            coords, times = cine_interpolate(coord_ary, time_ary)
 
-                        i_circ = Circle((coords[0][i], coords[1][i]), 1, edgecolor='green', fill=True)
+            # add predicted values
+            for i in range(len(times)):
+                k = "{}_{}".format(curr_selection, i)
 
-                        self.circle_data[k] = i_circ
-                        self.circle_data[k].PLOTTED = True
-                        self.circle_data[k].set_visible(False)
-                        self.ax.add_patch(i_circ)
+                # escape annotated
+                if self.data_dict["point_locations"][k]:
+                    continue
+
+                i_circ = Circle((coords[0][i], coords[1][i]), 1, edgecolor='green', fill=True)
+
+                self.circle_data[k] = i_circ
+                self.circle_data[k].PLOTTED = True
+                self.circle_data[k].set_visible(False)
+                self.ax.add_patch(i_circ)
 
             # draw image
             self.ax.figure.canvas.draw()
