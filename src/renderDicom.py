@@ -252,14 +252,6 @@ class RenderDicomSeries:
                 else:
                     v.set_visible(False)
 
-        # render valid circles
-        for k, v in self.roi_data.items():
-            if v:
-                if self._eval_roi_bounds(x) and self.roi_data[x] is not None:
-                    v.set_visible(True)
-                else:
-                    v.set_visible(False)
-
         # update view
         self.ax.figure.canvas.draw()
 
@@ -549,56 +541,6 @@ class RenderDicomSeries:
             # update image
             self._update_image(self.curr_idx)
 
-    def _change_z_bounds(self, direction):
-        """
-        INPUT:
-            direction:
-                the int direction of change for z bounds
-        EFFECT:
-            changes the size of the circle radius
-        """
-        # return if nothing is selected
-        if self.curr_selection is None:
-            return
-        # return if we aren't in a valid roi type
-        elif self.curr_selection not in self.roi_data.keys():
-            return
-        # don't change if we have less than zero slices
-        elif self.data_dict["roi_bounds"][self.curr_selection] + direction < 0:
-            return
-        else:
-            self.data_dict["roi_bounds"][self.curr_selection] =\
-                self.data_dict["roi_bounds"][self.curr_selection] + direction
-
-            # update image
-            self._update_image(self.curr_idx)
-
-    def _eval_roi_bounds(self, location):
-        """
-        INPUTS:
-            location:
-                the current anatomic location
-        RETURN:
-            True if and only if:
-                - if location is in roi_data list
-                - roi_bounds[location][1] is not none
-                - slice is actuall within bounds
-            False otherwise
-        """
-        if location in self.roi_data:
-            curr_bounds = self.data_dict["roi_bounds"][location]
-            curr_loc = self.data_dict["slice_location"][location]
-        else:
-            return False
-
-        # test to see if location is wihtin roi_landmarks
-        if curr_bounds == None or curr_loc == None:
-            return False
-        elif curr_loc - curr_bounds <= self.curr_idx <= curr_loc + curr_bounds:
-            return True
-        else:
-            return False
-
     def _print_console_msg(self):
         """
         EFFECT:
@@ -662,42 +604,30 @@ class RenderDicomSeries:
         elif self.data_dict["slice_location"][self.curr_selection] == None:
             return
 
-        # test if it's an roi
-        if self.curr_selection in self.roi_data.keys():
-            # test if already populated data to reset
-            if self.roi_data[self.curr_selection] is not None:
-                self.roi_data[self.curr_selection].remove()
-                self.roi_data[self.curr_selection] = None
-                self.data_dict["vert_data"][self.curr_selection] = None
-            else:
-                return
+        cine_frame, slice = self._get_cine_and_slice(self.curr_idx)
 
-        # remove for point location anatomy data
+        if self.cine_series:
+            curr_cine_key = "{}_{}".format(self.curr_selection, cine_frame)
         else:
-            # get slice and cine frame from index
-            cine_frame, slice = self._get_cine_and_slice(self.curr_idx)
+            curr_cine_key = self.curr_selection
 
-            if self.cine_series:
-                curr_cine_key = "{}_{}".format(self.curr_selection, cine_frame)
-            else:
-                curr_cine_key = self.curr_selection
+        # test if already populated data to reset
+        if self.data_dict["point_locations"][curr_cine_key]:
 
-            # test if already populated data to reset
-            if self.data_dict["point_locations"][curr_cine_key] is not None:
-                # remove old point
-                self.data_dict["point_locations"][curr_cine_key] = None
+            # remove old point
+            self.data_dict["point_locations"][curr_cine_key] = None
 
-                # remove old circle
-                self.circle_data[curr_cine_key].remove()
-                self.circle_data[curr_cine_key] = None
+            # remove old circle
+            self.circle_data[curr_cine_key].remove()
+            self.circle_data[curr_cine_key] = None
 
-                # remove slice location
-                self.data_dict["slice_location"][curr_cine_key] =  None
+            # remove slice location
+            self.data_dict["slice_location"][curr_cine_key] = None
 
-                # make interpolatd points
-                self._set_interpolated_points()
-            else:
-                return
+            # make interpolatd points
+            self._set_interpolated_points()
+        else:
+            return
 
         # draw image
         self.ax.figure.canvas.draw()
