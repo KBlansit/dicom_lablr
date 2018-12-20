@@ -139,7 +139,7 @@ class RenderDicomSeries:
             # initialize data dict
             self.data_dict = {
                 # all
-                "slice_location": dict(zip(point_lst+roi_lst, [None for x in point_lst+roi_lst])),
+                "slice_location": dict(zip(cine_point_lst+roi_lst, [None for x in cine_point_lst+roi_lst])),
                 # point
                 "point_locations": dict(zip(cine_point_lst, [None for x in cine_point_lst])),
                 # roi
@@ -220,7 +220,7 @@ class RenderDicomSeries:
             new_idx:
                 the index of self.dicom_lst to render
         EFFECT:
-            updates
+            updates image
         """
 
         # set curr inde and image
@@ -239,11 +239,14 @@ class RenderDicomSeries:
         # render valid rois
         for k, v in self.circle_data.items():
             # determine bools
-            correct_slice = self.data_dict["slice_location"][k.split("_")[0]] == slice
+            correct_slice = self.data_dict["slice_location"][k] == slice
             if self.cine_series:
                 correct_cine = int(k.split("_")[1]) == cine_frame
             else:
                 correct_cine = True
+
+            # HACK
+            correct_slice = True
 
             # show circle if both are true
             if v:
@@ -266,6 +269,8 @@ class RenderDicomSeries:
 
         # add predicted interpolated coords
         if self.cine_series:
+
+            print("Interpolating...")
 
             # do for all anatomies
             for anat in self.valid_location_types:
@@ -373,7 +378,7 @@ class RenderDicomSeries:
                 self.ax.add_patch(circ)
 
                 # add slice_location and circle location information
-                self.data_dict["slice_location"][self.curr_selection] = slice
+                self.data_dict["slice_location"][curr_cine_key] = slice
                 self.data_dict["point_locations"][curr_cine_key] = (event.xdata, event.ydata)
 
                 # set green points
@@ -557,33 +562,7 @@ class RenderDicomSeries:
             else:
                 curr_cine_key = self.curr_selection
 
-            # determine if slice has already been set
-            if self.curr_selection in self.roi_data:
-                if self.roi_data[self.curr_selection] is not None:
-                    # get vars
-                    curr_loc = self.data_dict["slice_location"][self.curr_selection]
-                    curr_bounds = self.data_dict["roi_bounds"][self.curr_selection]
-
-                    # get max and min slice
-                    min_slice = max(0, curr_loc - curr_bounds)
-                    max_slice = min(len(self.dicom_lst), curr_loc + curr_bounds)
-
-                    # construct string
-                    slice_loc_str = " [slice - ({} - {} - {})]".format(*(str(x) for x in (min_slice, curr_loc, max_slice)))
-
-                else:
-                    slice_loc_str = ""
-
-                # get curr roi type
-                curr_roi = REGEX_PARSE.search(self.curr_selection).group()
-
-            elif self.curr_selection in set([x.split("_")[0] for x in self.circle_data.keys()]):
-                if self.data_dict["slice_location"][self.curr_selection]:
-                    slice_loc_str = " [slice - {}]".format(str())
-                else:
-                    slice_loc_str = ""
-
-            usr_msg = "Current selection: {}{}".format(self.curr_selection, slice_loc_str)
+            usr_msg = "Current selection: {}".format(self.curr_selection)
 
         # concatenate messges
         usr_msg = "\rSlide {}; {}".format(str(self.curr_idx), usr_msg)
@@ -597,19 +576,19 @@ class RenderDicomSeries:
         EFFECT:
             resets the location
         """
-        # return if nothing is selected
-        if self.curr_selection is None:
-            return
-        # return if slice location not valid
-        elif self.data_dict["slice_location"][self.curr_selection] == None:
-            return
-
         cine_frame, slice = self._get_cine_and_slice(self.curr_idx)
 
         if self.cine_series:
             curr_cine_key = "{}_{}".format(self.curr_selection, cine_frame)
         else:
             curr_cine_key = self.curr_selection
+
+        # return if nothing is selected
+        if self.curr_selection is None:
+            return
+        # return if slice location not valid
+        elif self.data_dict["slice_location"][curr_cine_key] == None:
+            return
 
         # test if already populated data to reset
         if self.data_dict["point_locations"][curr_cine_key]:
