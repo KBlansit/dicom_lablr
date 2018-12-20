@@ -234,7 +234,7 @@ class RenderDicomSeries:
         self.y_max = self.ax.get_ylim()[0]
 
         # get slice and cine frame from index
-        cine_frame, slice = self._get_cine_and_slice(new_idx)
+        cine_frame, slice = self._get_cine_and_slice(self.curr_idx)
 
         # render valid rois
         for k, v in self.circle_data.items():
@@ -244,9 +244,6 @@ class RenderDicomSeries:
                 correct_cine = int(k.split("_")[1]) == cine_frame
             else:
                 correct_cine = True
-
-            # HACK
-            correct_slice = True
 
             # show circle if both are true
             if v:
@@ -266,6 +263,8 @@ class RenderDicomSeries:
         EFFECT:
             draws predicted interpolated points
         """
+        # get slice and cine frame from index
+        cine_frame, slice = self._get_cine_and_slice(self.curr_idx)
 
         # add predicted interpolated coords
         if self.cine_series:
@@ -323,6 +322,8 @@ class RenderDicomSeries:
                     self.circle_data[k].PLOTTED = True
                     self.circle_data[k].set_visible(False)
                     self.ax.add_patch(i_circ)
+
+                    self.data_dict["slice_location"][k] = slice
 
             # draw image
             self.ax.figure.canvas.draw()
