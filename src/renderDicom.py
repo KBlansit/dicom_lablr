@@ -20,7 +20,7 @@ from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
 from src.process_roi import get_roi_indicies
-from src.interpolation import cine_interpolate
+from src.interpolation import cine_interpolate, linear_interpolate_slices
 
 # global messages
 INITIAL_USR_MSG = "Please select a anatomic landmark"
@@ -269,14 +269,13 @@ class RenderDicomSeries:
         # add predicted interpolated coords
         if self.cine_series:
 
-            print("Interpolating...")
-
             # do for all anatomies
             for anat in self.valid_location_types:
 
                 # make list of coords and time points
                 coord_lst = []
                 time_lst = []
+                slice_lst = []
                 for k, v in self.data_dict["point_locations"].items():
                     # escape from loop
                     if not k.split("_")[0] == anat:
@@ -287,6 +286,7 @@ class RenderDicomSeries:
                     # append time and coords
                     time_lst.append(int(k.split("_")[1]))
                     coord_lst.append(v)
+                    slice_lst.append(self.data_dict["slice_location"][k])
 
                 # if list is empty, then try to remove cirlces
                 if not len(time_lst):
@@ -300,13 +300,16 @@ class RenderDicomSeries:
                 # make arrays
                 time_ary = np.array(time_lst)
                 coord_ary = np.concatenate(coord_lst).reshape(-1, 2)
+                slice_ary = np.array(slice_lst)
 
                 # get index and sort
                 indx = np.argsort(time_ary)
                 time_ary = time_ary[indx]
                 coord_ary = coord_ary[indx]
+                slice_ary = slice_ary[indx]
 
                 coords, times = cine_interpolate(coord_ary, time_ary)
+                slice_interp_ary = linear_interpolate_slices(slice_ary, time_ary)[0]
 
                 # add predicted values
                 for i in range(len(times)):
@@ -323,7 +326,7 @@ class RenderDicomSeries:
                     self.circle_data[k].set_visible(False)
                     self.ax.add_patch(i_circ)
 
-                    self.data_dict["slice_location"][k] = slice
+                    self.data_dict["slice_location"][k] = slice_interp_ary[i]
 
             # draw image
             self.ax.figure.canvas.draw()
