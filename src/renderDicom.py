@@ -255,7 +255,7 @@ class RenderDicomSeries:
         # update view
         self.ax.figure.canvas.draw()
 
-    def _set_interpolated_points(self):
+    def _update_set_interpolated_points(self, landmark):
         """
         INPUT:
             curr_selection:
@@ -269,67 +269,64 @@ class RenderDicomSeries:
         # add predicted interpolated coords
         if self.cine_series:
 
-            # do for all anatomies
-            for anat in self.valid_location_types:
-
-                # make list of coords and time points
-                coord_lst = []
-                time_lst = []
-                slice_lst = []
-                for k, v in self.data_dict["point_locations"].items():
-                    # escape from loop
-                    if not k.split("_")[0] == anat:
-                        continue
-                    elif not v:
-                        continue
-
-                    # append time and coords
-                    time_lst.append(int(k.split("_")[1]))
-                    coord_lst.append(v)
-                    slice_lst.append(self.data_dict["slice_location"][k])
-
-                # if list is empty, then try to remove cirlces
-                if not len(time_lst):
-                    for i in range(self.cine_series):
-                        k = "{}_{}".format(anat, i)
-                        self.circle_data[k] = None
-
-                    # escape
+            # make list of coords and time points
+            coord_lst = []
+            time_lst = []
+            slice_lst = []
+            for k, v in self.data_dict["point_locations"].items():
+                # escape from loop
+                if not k.split("_")[0] == landmark:
+                    continue
+                elif not v:
                     continue
 
-                # make arrays
-                time_ary = np.array(time_lst)
-                coord_ary = np.concatenate(coord_lst).reshape(-1, 2)
-                slice_ary = np.array(slice_lst)
+                # append time and coords
+                time_lst.append(int(k.split("_")[1]))
+                coord_lst.append(v)
+                slice_lst.append(self.data_dict["slice_location"][k])
 
-                # get index and sort
-                indx = np.argsort(time_ary)
-                time_ary = time_ary[indx]
-                coord_ary = coord_ary[indx]
-                slice_ary = slice_ary[indx]
+            # if list is empty, then try to remove cirlces
+            if not len(time_lst):
+                for i in range(self.cine_series):
+                    k = "{}_{}".format(landmark, i)
+                    self.circle_data[k] = None
 
-                coords, times = cine_interpolate(coord_ary, time_ary)
-                slice_interp_ary = linear_interpolate_slices(slice_ary, time_ary)[0]
+                # escape
+                return
 
-                # add predicted values
-                for i in range(len(times)):
-                    k = "{}_{}".format(self.curr_selection, i)
+            # make arrays
+            time_ary = np.array(time_lst)
+            coord_ary = np.concatenate(coord_lst).reshape(-1, 2)
+            slice_ary = np.array(slice_lst)
 
-                    # escape annotated
-                    if self.data_dict["point_locations"][k]:
-                        continue
+            # get index and sort
+            indx = np.argsort(time_ary)
+            time_ary = time_ary[indx]
+            coord_ary = coord_ary[indx]
+            slice_ary = slice_ary[indx]
 
-                    i_circ = Circle((coords[0][i], coords[1][i]), 1, edgecolor='green', fill=True)
+            coords, times = cine_interpolate(coord_ary, time_ary)
+            slice_interp_ary = linear_interpolate_slices(slice_ary, time_ary)[0]
 
-                    self.circle_data[k] = i_circ
-                    self.circle_data[k].PLOTTED = True
-                    self.circle_data[k].set_visible(False)
-                    self.ax.add_patch(i_circ)
+            # add predicted values
+            for i in range(len(times)):
+                k = "{}_{}".format(self.curr_selection, i)
 
-                    self.data_dict["slice_location"][k] = slice_interp_ary[i]
+                # escape annotated
+                if self.data_dict["point_locations"][k]:
+                    continue
 
-            # draw image
-            self.ax.figure.canvas.draw()
+                i_circ = Circle((coords[0][i], coords[1][i]), 1, edgecolor='green', fill=True)
+
+                self.circle_data[k] = i_circ
+                self.circle_data[k].PLOTTED = True
+                self.circle_data[k].set_visible(False)
+                self.ax.add_patch(i_circ)
+
+                self.data_dict["slice_location"][k] = slice_interp_ary[i]
+
+        # draw image
+        self.ax.figure.canvas.draw()
 
     def _on_click(self, event):
         """
@@ -386,7 +383,7 @@ class RenderDicomSeries:
                 self.data_dict["point_locations"][curr_cine_key] = (event.xdata, event.ydata)
 
                 # set green points
-                self._set_interpolated_points()
+                self._update_set_interpolated_points(self.curr_selection)
 
             # draw image
             self.ax.figure.canvas.draw()
@@ -608,7 +605,7 @@ class RenderDicomSeries:
             self.data_dict["slice_location"][curr_cine_key] = None
 
             # make interpolatd points
-            self._set_interpolated_points()
+            self._update_set_interpolated_points(self.curr_selection)
         else:
             return
 
