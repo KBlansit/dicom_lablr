@@ -138,18 +138,6 @@ class RenderDicomSeries:
                     if v:
                         self._update_set_interpolated_points(curr_k_name)
 
-            self.roi_data = {}
-            for curr_roi, ver_path in self.data_dict["vert_data"].items():
-                if ver_path:
-                    curr_class = REGEX_PARSE.search(curr_roi).group()
-                    curr_color = self.roi_colors[curr_class]
-                    patch = patches.PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
-                    self.roi_data[curr_roi] = patch
-                    patch.set_visible(False)
-                    self.ax.add_patch(patch)
-                else:
-                    self.roi_data[curr_roi] = None
-
         else:
             # initialize data dict
             self.data_dict = {
