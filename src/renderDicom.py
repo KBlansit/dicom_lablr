@@ -114,7 +114,6 @@ class RenderDicomSeries:
 
             # initialize old circle data
             self.circle_data = {}
-            self.roi_data = {}
             for lndmrk, loc in self.data_dict["point_locations"].items():
                 if loc:
                     circ = Circle((loc), 1, edgecolor='red', fill=True)
@@ -124,6 +123,22 @@ class RenderDicomSeries:
                 else:
                     self.circle_data[lndmrk] = None
 
+
+            # loops through landmakrs to set them (only 1 per landmark)
+            interpolated_points = []
+            for k, v in self.data_dict["point_locations"].items():
+                if not len(set(self.locations_markers.values()) - set(interpolated_points)):
+                    break
+                elif v:
+                    if self.cine_series:
+                        curr_k_name = k.split("_")[0]
+                    else:
+                        curr_k_name = k
+                    interpolated_points.append(curr_k_name)
+                    if v:
+                        self._update_set_interpolated_points(curr_k_name)
+
+            self.roi_data = {}
             for curr_roi, ver_path in self.data_dict["vert_data"].items():
                 if ver_path:
                     curr_class = REGEX_PARSE.search(curr_roi).group()
@@ -308,7 +323,7 @@ class RenderDicomSeries:
 
             # add predicted values
             for i in range(len(times)):
-                k = "{}_{}".format(self.curr_selection, i)
+                k = "{}_{}".format(landmark, i)
 
                 # escape annotated
                 if self.data_dict["point_locations"][k]:
