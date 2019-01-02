@@ -9,6 +9,7 @@ import warnings
 
 import deepdish as dd
 
+from pathlib import Path
 from matplotlib import pyplot
 
 # import user defined functions
@@ -60,8 +61,16 @@ def main():
     # import dicom
     dicom_lst = import_dicom(input_path)
 
+    # get a unique id
+    if dicom_lst[0].AccessionNumber:
+        p = Path(cmd_args.path)
+        u_id = "{}_{}".format(dicom_lst[0].AccessionNumber, p.name)
+    else:
+        p = Path(cmd_args.path)
+        u_id = p.name
+
     # make annotation out path
-    save_path = os.path.join(cmd_args.save_path, dicom_lst[0].AccessionNumber + ".hd")
+    save_path = os.path.join(cmd_args.save_path, u_id + ".hd")
 
     # test to see if old annotation exists
     if os.path.exists(save_path):

@@ -194,10 +194,6 @@ class RenderDicomSeries:
         OUTPUT:
             returns data dict
         """
-        # get dicom acc id
-        self.data_dict["acc_num"] = self.dicom_lst[0].AccessionNumber
-
-        # return
         return self.data_dict
 
     def _get_cine_and_slice(self, indx):
@@ -260,6 +256,8 @@ class RenderDicomSeries:
         INPUT:
             curr_selection:
                 the currently selected landmark
+            landmark:
+                the landmark to update the cine points for
         EFFECT:
             draws predicted interpolated points
         """
