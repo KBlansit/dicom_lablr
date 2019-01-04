@@ -449,12 +449,6 @@ class RenderDicomSeries:
             # set to selection
             self.curr_selection = self.locations_markers[event.key]
 
-            # change lasso slector policy
-            if self.curr_selection in self.roi_data.keys():
-                self.curr_lasso.active = True
-            else:
-                self.curr_lasso.active = False
-
         # escape functions
         elif event.key == "escape":
             self.curr_selection = None
