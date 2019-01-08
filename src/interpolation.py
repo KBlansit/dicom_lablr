@@ -4,7 +4,7 @@ import numpy as np
 from math import floor, ceil
 from scipy.interpolate import splev, splrep
 
-def get_1d_perioidc_interpolation(x, y, t_max, times = 6):
+def get_1d_interpolation(x, y, t_max, times = 6, type = "linear"):
     """
     INPUT:
         x:
@@ -36,10 +36,19 @@ def get_1d_perioidc_interpolation(x, y, t_max, times = 6):
     x_conc = np.concatenate([x + _ for _ in (t_max * np.arange(-pre_periods, after_periods))])
     y_conc = np.concatenate([y] * times)
 
-    # create interpolation object and interpolate
-    spl = splrep(x_conc, y_conc)
+    # make interp x
     interp_x = np.arange(0, t_max)
-    interp_y = splev(interp_x, spl)
+
+    if type == "linear":
+        interp_y = np.interp(interp_x, x_conc, y_conc)
+
+    elif type == "periodic":
+        # create interpolation object and interpolate
+        spl = splrep(x_conc, y_conc)
+        interp_y = splev(interp_x, spl)
+    else:
+        raise AssertionError("Type must be either linear or periodic. Got {}".format(type))
+
 
     return interp_y
 
@@ -61,7 +70,7 @@ def cine_interpolate(ijk_coord_arry, t_arry, t_max = 20):
     """
 
     # get interpolation
-    interp_coords = [get_1d_perioidc_interpolation(t_arry, x, t_max) for x in ijk_coord_arry.T]
+    interp_coords = [get_1d_interpolation(t_arry, x, t_max) for x in ijk_coord_arry.T]
 
     # get time values
     interp_x = np.arange(0, t_max)

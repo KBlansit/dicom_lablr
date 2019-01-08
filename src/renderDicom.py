@@ -371,20 +371,18 @@ class RenderDicomSeries:
                     self.circle_data[curr_cine_key].remove()
 
             # create circle object
-            if not curr_cine_key in self.roi_data.keys():
-                # add annotated circle
-                circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
+            circ = Circle((event.xdata, event.ydata), 1, edgecolor='red', fill=True)
 
-                self.circle_data[curr_cine_key] = circ
-                self.circle_data[curr_cine_key].PLOTTED = True
-                self.ax.add_patch(circ)
+            self.circle_data[curr_cine_key] = circ
+            self.circle_data[curr_cine_key].PLOTTED = True
+            self.ax.add_patch(circ)
 
-                # add slice_location and circle location information
-                self.data_dict["slice_location"][curr_cine_key] = slice
-                self.data_dict["point_locations"][curr_cine_key] = (event.xdata, event.ydata)
+            # add slice_location and circle location information
+            self.data_dict["slice_location"][curr_cine_key] = slice
+            self.data_dict["point_locations"][curr_cine_key] = (event.xdata, event.ydata)
 
-                # set green points
-                self._update_set_interpolated_points(self.curr_selection)
+            # set green points
+            self._update_set_interpolated_points(self.curr_selection)
 
             # draw image
             self.ax.figure.canvas.draw()
