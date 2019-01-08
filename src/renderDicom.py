@@ -50,6 +50,9 @@ mpl.rcParams['keymap.grid'] = ''
 mpl.rcParams['keymap.yscale'] = ''
 mpl.rcParams['keymap.xscale'] = ''
 mpl.rcParams['keymap.all_axes'] = ''
+mpl.rcParams['toolbar'] = 'None'
+
+mpl.rcParams['figure.figsize'] = (7.5, 7.5)
 
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 
@@ -727,8 +730,6 @@ def plotDicom(dicom_lst, settings_path, previous_directory=None):
     EFFECT:
         plots dicom object and acts as hook for GUI funcitons
     """
-    # toggle off toolbar
-    mpl.rcParams['toolbar'] = 'None'
 
     # make fig object
     fig, (ax) = pyplot.subplots(1)
