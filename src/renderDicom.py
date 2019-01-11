@@ -4,7 +4,6 @@
 import re
 import sys
 import math
-import dicom
 import datetime
 
 import numpy as np
@@ -50,6 +49,8 @@ mpl.rcParams['keymap.grid'] = ''
 mpl.rcParams['keymap.yscale'] = ''
 mpl.rcParams['keymap.xscale'] = ''
 mpl.rcParams['keymap.all_axes'] = ''
+
+mpl.rcParams['figure.figsize'] = (7.5, 7.5)
 
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 

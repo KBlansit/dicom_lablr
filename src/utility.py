@@ -4,12 +4,11 @@
 import re
 import os
 import yaml
-import dicom
 import bisect
 import shutil
 
-
 import pandas as pd
+import pydicom as dicom
 
 REGEX_PARSE = re.compile("([aA-zZ]+)")
 
