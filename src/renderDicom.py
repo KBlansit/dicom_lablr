@@ -105,6 +105,10 @@ class RenderDicomSeries:
 
         # use individual cine frames if possible
         self.cine_series = int(self.dicom_lst[0].CardiacNumberOfImages)
+
+        # lol hack
+        if self.cine_series == 1: self.cine_series = None
+
         if self.cine_series:
             cine_point_lst = ["{}_{}".format(x, y) for x, y in product(*[point_lst, range(self.cine_series)])]
         else:
