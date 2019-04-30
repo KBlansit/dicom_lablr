@@ -39,10 +39,8 @@ def pad_str_sep(input_str, target_len, pad_char):
 
 def make_main_menu_prompt(landmark_lst, roi_lst, curr_selection = None, roi_rep = 4):
     # make message
-    if not curr_selection:
-        message = "Main Menu: Select an option below."
-    else:
-        
+    message = "Main Menu: Select an option below."
+
 
     # construct landmark lst
     landmark_lst = [pad_str_sep("Landmarks:", TARGET_STR_LEN, "*")] + landmark_lst
@@ -64,7 +62,7 @@ def make_main_menu_prompt(landmark_lst, roi_lst, curr_selection = None, roi_rep 
     main_menu_prompt = {
         'type': 'list',
         'name': 'main_menu',
-        'message': "Main Menu: Select an option below.",
+        'message': message,
         'choices': choice_lst,
     }
 

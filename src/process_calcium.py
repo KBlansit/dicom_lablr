@@ -6,6 +6,8 @@ import os
 import numpy as np
 import pandas as pd
 
+from scipy.ndimage import label
+
 # define parameters
 HOUNSFIELD_1_MIN = 130
 HOUNSFIELD_2_MIN = 200
@@ -13,6 +15,8 @@ HOUNSFIELD_3_MIN = 300
 HOUNSFIELD_4_MIN = 400
 
 MIN_AGASTON_AREA = 1
+
+CONNECTED_COMPONENTS_SHAPE = np.ones([3, 3, 3])
 
 def rescale_dicom(curr_dicom):
     """
@@ -153,6 +157,56 @@ def calculate_calcium_volume(mskd_mtx, pixel_spacing, slice_thickness):
 
     # calculate volume
     return num_vox * vol_vox
+
+def get_calcifications(roi_indx_lst, dicom_lst):
+    """
+    INPUTS:
+        roi_indx_lst:
+            the list of coordinate tuples
+        dicom_lst:
+            the list of dicom files
+    """
+    # get vals
+    y_vals = [x[0] for x in roi_indx_lst]
+    x_vals = [x[1] for x in roi_indx_lst]
+    s_vals = [x[2] for x in roi_indx_lst]
+
+    # get min and max
+    y_rng = min(y_vals), max(y_vals) + 1
+    x_rng = min(x_vals), max(x_vals) + 1
+    s_rng = min(s_vals), max(s_vals) + 1
+
+    # form matrix
+    pxl_lst = [rescale_dicom(dicom_lst[x]) for x in range(*s_rng)]
+    pxl_lst = [x[x_rng[0]:x_rng[1], y_rng[0]:y_rng[1]] for x in pxl_lst]
+    pxl_mtx = np.stack(pxl_lst, axis=-1)
+
+    # mask matrix
+    msk_mtx = mask_matrix(pxl_mtx, roi_indx_lst)
+
+    # mask below min houndsfield threshold
+    msk_mtx[np.where(msk_mtx < HOUNSFIELD_1_MIN)] = 0
+
+    # label image
+    lbl_mtx, n_features = label(msk_mtx, CONNECTED_COMPONENTS_SHAPE)
+
+    min_ary = np.array([x_rng[0], y_rng[0], s_vals[0]])
+
+    # get centroids
+    centroid_lst = []
+    size_lst = []
+    for curr_feature in range(1, n_features + 1):
+
+        # get centroid
+        centroid = np.stack(np.where(lbl_mtx == curr_feature)).mean(axis=1).round()
+
+        # add size to list
+        size_lst.append(centroid - np.stack(np.where(lbl_mtx == curr_feature)).min(axis=1).round())
+
+        # update centroid to true centoid and add to list
+        centroid_lst.append(centroid + min_ary)
+
+    return centroid_lst, size_lst
 
 def get_calcium_measurements(roi_indx_lst, dicom_lst, debug=False):
     """

@@ -17,7 +17,7 @@ from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
-from src.process_calcium import get_calcium_measurements
+from src.process_calcium import get_calcium_measurements, get_calcifications
 from src.process_roi import get_roi_indicies
 
 # global messages
@@ -89,6 +89,7 @@ class RenderDicomSeries:
         self.curr_selection = None
         self.curr_idx = 0
         self.scrolling = False
+        self.showing_calcium = False
 
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
@@ -457,6 +458,9 @@ class RenderDicomSeries:
         elif event.key == "[":
             self._change_z_bounds(-1)
 
+        elif event.key == " ":
+            self._show_calcium()
+
         # else quit
         else:
             return
@@ -646,6 +650,59 @@ class RenderDicomSeries:
 
         # draw image
         self.ax.figure.canvas.draw()
+
+    def _show_calcium(self):
+        # do only if we are currently on a valid data type
+        if self.curr_selection in self.roi_data.keys():
+            # get curr roi type
+            curr_roi = REGEX_PARSE.search(self.curr_selection).group()
+
+            # initialize roi indx lst
+            roi_indx_lst = []
+
+            # do for keys
+            for curr_k in [x for x in self.roi_data.keys() if x.startswith(curr_roi)]:
+                # test if curr key has been used
+                if not self.data_dict["vert_data"][curr_k] is None:
+
+                    # get current roi
+                    roi_path_indx = self.data_dict["vert_data"][curr_k]
+
+                    # get slice ranges
+                    curr_bounds = self.data_dict["roi_bounds"][curr_k]
+                    curr_loc = self.data_dict["slice_location"][curr_k]
+
+                    slice_range = (
+                        max(0, curr_loc - curr_bounds),
+                        min(len(self.dicom_lst), curr_loc + curr_bounds) + 1,
+                    )
+
+                    # get dims
+                    dicom_dims = self.dicom_lst[0].pixel_array.shape
+
+                    # get roi indicies
+                    curr_indx_lst = get_roi_indicies(roi_path_indx, dicom_dims, slice_range)
+
+                    # add to roi coord arry
+                    roi_indx_lst = roi_indx_lst + curr_indx_lst
+
+            # get unique coords
+            roi_indx_lst = list(set(roi_indx_lst))
+
+            c_lst, s_lst = get_calcifications(roi_indx_lst, self.dicom_lst)
+
+            for i in range(len(c_lst)):
+                curr_x, curr_y = c_lst[i].astype('int')[:2][::-1]
+                circ = Circle((curr_x, curr_y), 1, edgecolor='red', fill=True)
+                circ.PLOTTED = True
+                self.ax.add_patch(circ)
+
+
+            self.ax.figure.canvas.draw()
+
+            import pdb; pdb.set_trace()
+
+
 
     def _next_image(self):
         """
