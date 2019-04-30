@@ -688,39 +688,62 @@ class RenderDicomSeries:
         self.ax.figure.canvas.draw()
 
     def _populate_calcium(self):
-        # do only if we are currently on a valid data type
-        if self.curr_selection in self.roi_data.keys():
+
+        # determine if we're already showing and turn off
+        if self.showing_calcium:
+            # turn off visiblity
+            for curr_rect in self.ca_rect_lst:
+                curr_rect.set_visible(False)
+
+            # clear lists
+            self.ca_slc_lst = []
+            self.ca_rect_lst = []
+
+            # turn off showing calcium
+            self.showing_calcium = False
+
+            # update image
+            self._update_image(self.curr_idx)
+
+            # draw
+            self.ax.figure.canvas.draw()
+
+        else:
+
             # get curr roi type
-            curr_roi = REGEX_PARSE.search(self.curr_selection).group()
+            roi_lst = list(set([REGEX_PARSE.search(x).group() for x in self.roi_data.keys()]))
 
             # initialize roi indx lst
             roi_indx_lst = []
 
-            # do for keys
-            for curr_k in [x for x in self.roi_data.keys() if x.startswith(curr_roi)]:
-                # test if curr key has been used
-                if not self.data_dict["vert_data"][curr_k] is None:
+            # do for all ROIs
+            for curr_roi in roi_lst:
 
-                    # get current roi
-                    roi_path_indx = self.data_dict["vert_data"][curr_k]
+                # do for keys
+                for curr_k in [x for x in self.roi_data.keys() if x.startswith(curr_roi)]:
+                    # test if curr key has been used
+                    if not self.data_dict["vert_data"][curr_k] is None:
 
-                    # get slice ranges
-                    curr_bounds = self.data_dict["roi_bounds"][curr_k]
-                    curr_loc = self.data_dict["slice_location"][curr_k]
+                        # get current roi
+                        roi_path_indx = self.data_dict["vert_data"][curr_k]
 
-                    slice_range = (
-                        max(0, curr_loc - curr_bounds),
-                        min(len(self.dicom_lst), curr_loc + curr_bounds) + 1,
-                    )
+                        # get slice ranges
+                        curr_bounds = self.data_dict["roi_bounds"][curr_k]
+                        curr_loc = self.data_dict["slice_location"][curr_k]
 
-                    # get dims
-                    dicom_dims = self.dicom_lst[0].pixel_array.shape
+                        slice_range = (
+                            max(0, curr_loc - curr_bounds),
+                            min(len(self.dicom_lst), curr_loc + curr_bounds) + 1,
+                        )
 
-                    # get roi indicies
-                    curr_indx_lst = get_roi_indicies(roi_path_indx, dicom_dims, slice_range)
+                        # get dims
+                        dicom_dims = self.dicom_lst[0].pixel_array.shape
 
-                    # add to roi coord arry
-                    roi_indx_lst = roi_indx_lst + curr_indx_lst
+                        # get roi indicies
+                        curr_indx_lst = get_roi_indicies(roi_path_indx, dicom_dims, slice_range)
+
+                        # add to roi coord arry
+                        roi_indx_lst = roi_indx_lst + curr_indx_lst
 
             # get unique coords
             roi_indx_lst = list(set(roi_indx_lst))
