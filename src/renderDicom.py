@@ -215,25 +215,35 @@ class RenderDicomSeries:
         self.x_max = self.ax.get_xlim()[1]
         self.y_max = self.ax.get_ylim()[0]
 
+        # determine if we need to show calcium
+        if self.showing_calcium:
+            for i in range(len(self.ca_rect_lst)):
+                # determine if we're on right slice
+                if self.curr_idx >= self.ca_slc_lst[i][0] and self.curr_idx <= self.ca_slc_lst[i][1]:
+                    self.ca_rect_lst[i].set_visible(True)
+                else:
+                    self.ca_rect_lst[i].set_visible(False)
+
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
             # determine if we need to show calcium
             if self.showing_calcium:
-                for i in range(len(self.ca_rect_lst)):
-                    # determine if we're on right slice
-                    if self.curr_idx >= self.ca_slc_lst[i][0] and self.curr_idx <= self.ca_slc_lst[i][1]:
-                        self.ca_rect_lst[i].set_visible(True)
-                    else:
-                        self.ca_rect_lst[i].set_visible(False)
+                if x in self.roi_data.keys():
+                    if self.roi_data[x] is not None:
+                        self.roi_data[x].set_visible(False)
+                else:
+                    if self.circle_data[x] is not None:
+                        self.circle_data[x].set_visible(False)
 
             # determine if we show point localizations
-            if self.data_dict["slice_location"][x] == new_idx:
+            elif self.data_dict["slice_location"][x] == new_idx:
                 if x in self.roi_data.keys():
                     if self.roi_data[x] is not None:
                         self.roi_data[x].set_visible(True)
                 else:
                     if self.circle_data[x] is not None:
                         self.circle_data[x].set_visible(True)
+
             # print ROIs
             elif self._eval_roi_bounds(x) and self.roi_data[x] is not None:
                 self.roi_data[x].set_visible(True)
@@ -736,6 +746,9 @@ class RenderDicomSeries:
 
             # set flag
             self.showing_calcium = True
+
+            # update image
+            self._update_image(self.curr_idx)
 
             # draw
             self.ax.figure.canvas.draw()
