@@ -217,6 +217,16 @@ class RenderDicomSeries:
 
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
+            # determine if we need to show calcium
+            if self.showing_calcium:
+                for i in range(len(self.ca_rect_lst)):
+                    # determine if we're on right slice
+                    if self.curr_idx >= self.ca_slc_lst[i][0] and self.curr_idx <= self.ca_slc_lst[i][1]:
+                        self.ca_rect_lst[i].set_visible(True)
+                    else:
+                        self.ca_rect_lst[i].set_visible(False)
+
+            # determine if we show point localizations
             if self.data_dict["slice_location"][x] == new_idx:
                 if x in self.roi_data.keys():
                     if self.roi_data[x] is not None:
@@ -224,16 +234,28 @@ class RenderDicomSeries:
                 else:
                     if self.circle_data[x] is not None:
                         self.circle_data[x].set_visible(True)
+            # print ROIs
             elif self._eval_roi_bounds(x) and self.roi_data[x] is not None:
                 self.roi_data[x].set_visible(True)
+
+            # need to capture this or else we fall through
             elif self.data_dict["slice_location"][x] == None:
                 pass
+
+            # set other ROIs to non visible
             elif x in self.roi_data.keys():
                 if self.roi_data[x] is not None:
                     self.roi_data[x].set_visible(False)
             else:
                 if self.circle_data[x] is not None:
                     self.circle_data[x].set_visible(False)
+
+        """
+        # add to list
+        self.ca_slc_lst.append(slc_rng)
+        self.ca_rect_lst.append(rect)
+        """
+
 
         # update view
         self.ax.figure.canvas.draw()
@@ -463,7 +485,7 @@ class RenderDicomSeries:
             self._change_z_bounds(-1)
 
         elif event.key == " ":
-            self._show_calcium()
+            self._populate_calcium()
 
         # else quit
         else:
@@ -655,7 +677,7 @@ class RenderDicomSeries:
         # draw image
         self.ax.figure.canvas.draw()
 
-    def _show_calcium(self):
+    def _populate_calcium(self):
         # do only if we are currently on a valid data type
         if self.curr_selection in self.roi_data.keys():
             # get curr roi type
@@ -702,7 +724,7 @@ class RenderDicomSeries:
 
                 # make rectangle
                 rect = Rectangle(xy_loc, -s_lst[i][1]*2, -s_lst[i][0]*2, 1, edgecolor="red", fill = None)
-                rect.PLOTTED = True
+                rect.PLOTTED = False
                 self.ax.add_patch(rect)
 
                 # add to list
@@ -711,6 +733,9 @@ class RenderDicomSeries:
                 # add to list
                 self.ca_slc_lst.append(slc_rng)
                 self.ca_rect_lst.append(rect)
+
+            # set flag
+            self.showing_calcium = True
 
             # draw
             self.ax.figure.canvas.draw()
