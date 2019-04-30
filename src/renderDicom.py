@@ -12,7 +12,7 @@ import deepdish as dd
 import matplotlib as mpl
 
 from matplotlib import pyplot, cm, path, patches
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Rectangle
 from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
 
 # import user fefined libraries
@@ -89,7 +89,11 @@ class RenderDicomSeries:
         self.curr_selection = None
         self.curr_idx = 0
         self.scrolling = False
+
+        # calciums
         self.showing_calcium = False
+        self.ca_slc_lst = []
+        self.ca_rect_lst = []
 
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
@@ -691,18 +695,25 @@ class RenderDicomSeries:
 
             c_lst, s_lst = get_calcifications(roi_indx_lst, self.dicom_lst)
 
+            # do for each calcium
             for i in range(len(c_lst)):
-                curr_x, curr_y = c_lst[i].astype('int')[:2][::-1]
-                circ = Circle((curr_x, curr_y), 1, edgecolor='red', fill=True)
-                circ.PLOTTED = True
-                self.ax.add_patch(circ)
+                # get corner
+                xy_loc = (s_lst[0] + c_lst[0])[:2][::-1]
 
+                # make rectangle
+                rect = Rectangle(xy_loc, -s_lst[i][1]*2, -s_lst[i][0]*2, 1, edgecolor="red", fill = None)
+                rect.PLOTTED = True
+                self.ax.add_patch(rect)
 
+                # add to list
+                slc_rng = (c_lst[i][2] - s_lst[i][2], c_lst[i][2] + s_lst[i][2])
+
+                # add to list
+                self.ca_slc_lst.append(slc_rng)
+                self.ca_rect_lst.append(rect)
+
+            # draw
             self.ax.figure.canvas.draw()
-
-            import pdb; pdb.set_trace()
-
-
 
     def _next_image(self):
         """
