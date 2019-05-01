@@ -8,6 +8,8 @@ import pandas as pd
 
 from scipy.ndimage import label
 
+from matplotlib.patches import Rectangle
+
 # define parameters
 HOUNSFIELD_1_MIN = 130
 HOUNSFIELD_2_MIN = 200
@@ -17,6 +19,52 @@ HOUNSFIELD_4_MIN = 400
 MIN_AGASTON_AREA = 1
 
 CONNECTED_COMPONENTS_SHAPE = np.ones([3, 3, 3])
+
+class CalciumPatch(object):
+    def __init__(self, curr_label, lbl_mtx, min_ary):
+        """
+        given a curr_label, lbl_mtx, img_mtx, min_ary get:
+            - centroid of patch
+            - height of patch
+            - width of patch
+            - volume
+            - ag score
+        """
+
+        # set indicies
+        #self.indicies =
+
+        self.min_indx = np.stack(np.where(lbl_mtx == curr_label)).min(axis=1).round() + min_ary
+        self.centroid = np.stack(np.where(lbl_mtx == curr_label)).mean(axis=1).round() + min_ary
+        self.max_indx = np.stack(np.where(lbl_mtx == curr_label)).max(axis=1).round() + min_ary
+
+        # set rectangle
+        xy_loc = self.max_indx[:2][::-1]
+
+        width = self.max_indx[1] - self.min_indx[1]
+        height = self.max_indx[0] - self.min_indx[0]
+        self.rect = Rectangle(xy_loc, -width, -height, 1, edgecolor="red", fill = None)
+        self.rect.PLOTTED = False
+
+    def get_rectangle(self):
+        """
+        returns matplotlib rectangle
+        """
+
+        return self.rect
+
+    def get_slice_range(self):
+        """
+        returns range of slices
+        """
+        return self.min_indx[-1], self.max_indx[-1]
+
+    def set_visible(self, bool):
+        """
+        setter for rect
+        """
+        self.rect.set_visible(bool)
+
 
 def rescale_dicom(curr_dicom):
     """
@@ -190,20 +238,16 @@ def get_calcifications(roi_indx_lst, dicom_lst):
     # label image
     lbl_mtx, n_features = label(msk_mtx, CONNECTED_COMPONENTS_SHAPE)
 
-    min_ary = np.array([x_rng[0], y_rng[0], s_vals[0]])
+    min_ary = np.array([x_rng[0], y_rng[0], min(s_vals)])
 
     # get centroids
-    centroid_lst = []
+    ca_lst = []
     for curr_feature in range(1, n_features + 1):
 
-        # get centroid
-        min_indx = np.stack(np.where(lbl_mtx == curr_feature)).min(axis=1).round() + min_ary
-        centroid = np.stack(np.where(lbl_mtx == curr_feature)).mean(axis=1).round() + min_ary
-        max_indx = np.stack(np.where(lbl_mtx == curr_feature)).max(axis=1).round() + min_ary
+        ca_patch = CalciumPatch(curr_feature, lbl_mtx, min_ary)
+        ca_lst.append(ca_patch)
 
-        centroid_lst.append((min_indx, centroid, max_indx))
-
-    return centroid_lst
+    return ca_lst
 
 def get_calcium_measurements(roi_indx_lst, dicom_lst, debug=False):
     """

@@ -12,7 +12,7 @@ import deepdish as dd
 import matplotlib as mpl
 
 from matplotlib import pyplot, cm, path, patches
-from matplotlib.patches import Circle, Rectangle
+from matplotlib.patches import Circle
 from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
 
 # import user fefined libraries
@@ -92,8 +92,7 @@ class RenderDicomSeries:
 
         # calciums
         self.showing_calcium = False
-        self.ca_coords_lst = []
-        self.ca_rect_lst = []
+        self.ca_lst = []
 
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
@@ -217,12 +216,15 @@ class RenderDicomSeries:
 
         # determine if we need to show calcium
         if self.showing_calcium:
-            for i in range(len(self.ca_rect_lst)):
+            for i in range(len(self.ca_lst)):
+                # get min and max slice of calcium
+                min_slice, max_slice = self.ca_lst[i].get_slice_range()
+
                 # determine if we're on right slice
-                if self.curr_idx >= self.ca_coords_lst[i][0][2] and self.curr_idx <= self.ca_coords_lst[i][2][2]:
-                    self.ca_rect_lst[i].set_visible(True)
+                if min_slice <= self.curr_idx <= max_slice:
+                    self.ca_lst[i].set_visible(True)
                 else:
-                    self.ca_rect_lst[i].set_visible(False)
+                    self.ca_lst[i].set_visible(False)
 
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
@@ -692,12 +694,11 @@ class RenderDicomSeries:
         # determine if we're already showing and turn off
         if self.showing_calcium:
             # turn off visiblity
-            for curr_rect in self.ca_rect_lst:
+            for curr_rect in self.ca_lst:
                 curr_rect.set_visible(False)
 
             # clear lists
-            self.ca_coords_lst = []
-            self.ca_rect_lst = []
+            self.ca_lst = []
 
             # turn off showing calcium
             self.showing_calcium = False
@@ -748,30 +749,17 @@ class RenderDicomSeries:
             # get unique coords
             roi_indx_lst = list(set(roi_indx_lst))
 
-            c_lst = get_calcifications(roi_indx_lst, self.dicom_lst)
+            # get calciums
+            temp_ca_lst = get_calcifications(roi_indx_lst, self.dicom_lst)
 
-            # do for each calcium
-            for i in range(len(c_lst)):
+            # add to ca list
+            self.ca_lst = self.ca_lst + temp_ca_lst
 
-                xy_loc = c_lst[i][2][:2][::-1]
+            # iterate over calcium
+            for curr_ca in self.ca_lst:
 
-                width = c_lst[i][2][1] - c_lst[i][0][1]
-                height = c_lst[i][2][0] - c_lst[i][0][0]
-
-                # make rectangle
-                rect = Rectangle(xy_loc, -width, -height, 1, edgecolor="red", fill = None)
-                rect.PLOTTED = False
-                self.ax.add_patch(rect)
-
-                # add to list
-
-                self.ax.figure.canvas.draw()
-
-                #slc_rng = (c_lst[i][2] - s_lst[i][2], c_lst[i][2] + s_lst[i][2])
-
-                # add to list
-                self.ca_coords_lst.append(c_lst[i])
-                self.ca_rect_lst.append(rect)
+                # add patch
+                self.ax.add_patch(curr_ca.get_rectangle())
 
             # set flag
             self.showing_calcium = True
