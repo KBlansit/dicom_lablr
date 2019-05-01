@@ -92,7 +92,7 @@ class RenderDicomSeries:
 
         # calciums
         self.showing_calcium = False
-        self.ca_slc_lst = []
+        self.ca_coords_lst = []
         self.ca_rect_lst = []
 
         # render to image
@@ -219,7 +219,7 @@ class RenderDicomSeries:
         if self.showing_calcium:
             for i in range(len(self.ca_rect_lst)):
                 # determine if we're on right slice
-                if self.curr_idx >= self.ca_slc_lst[i][0] and self.curr_idx <= self.ca_slc_lst[i][1]:
+                if self.curr_idx >= self.ca_coords_lst[i][0][2] and self.curr_idx <= self.ca_coords_lst[i][2][2]:
                     self.ca_rect_lst[i].set_visible(True)
                 else:
                     self.ca_rect_lst[i].set_visible(False)
@@ -696,7 +696,7 @@ class RenderDicomSeries:
                 curr_rect.set_visible(False)
 
             # clear lists
-            self.ca_slc_lst = []
+            self.ca_coords_lst = []
             self.ca_rect_lst = []
 
             # turn off showing calcium
@@ -748,23 +748,29 @@ class RenderDicomSeries:
             # get unique coords
             roi_indx_lst = list(set(roi_indx_lst))
 
-            c_lst, s_lst = get_calcifications(roi_indx_lst, self.dicom_lst)
+            c_lst = get_calcifications(roi_indx_lst, self.dicom_lst)
 
             # do for each calcium
             for i in range(len(c_lst)):
-                # get corner
-                xy_loc = (s_lst[0] + c_lst[0])[:2][::-1]
+
+                xy_loc = c_lst[i][2][:2][::-1]
+
+                width = c_lst[i][2][1] - c_lst[i][0][1]
+                height = c_lst[i][2][0] - c_lst[i][0][0]
 
                 # make rectangle
-                rect = Rectangle(xy_loc, -s_lst[i][1]*2, -s_lst[i][0]*2, 1, edgecolor="red", fill = None)
+                rect = Rectangle(xy_loc, -width, -height, 1, edgecolor="red", fill = None)
                 rect.PLOTTED = False
                 self.ax.add_patch(rect)
 
                 # add to list
-                slc_rng = (c_lst[i][2] - s_lst[i][2], c_lst[i][2] + s_lst[i][2])
+
+                self.ax.figure.canvas.draw()
+
+                #slc_rng = (c_lst[i][2] - s_lst[i][2], c_lst[i][2] + s_lst[i][2])
 
                 # add to list
-                self.ca_slc_lst.append(slc_rng)
+                self.ca_coords_lst.append(c_lst[i])
                 self.ca_rect_lst.append(rect)
 
             # set flag

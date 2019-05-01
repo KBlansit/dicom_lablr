@@ -194,19 +194,16 @@ def get_calcifications(roi_indx_lst, dicom_lst):
 
     # get centroids
     centroid_lst = []
-    size_lst = []
     for curr_feature in range(1, n_features + 1):
 
         # get centroid
-        centroid = np.stack(np.where(lbl_mtx == curr_feature)).mean(axis=1).round()
+        min_indx = np.stack(np.where(lbl_mtx == curr_feature)).min(axis=1).round() + min_ary
+        centroid = np.stack(np.where(lbl_mtx == curr_feature)).mean(axis=1).round() + min_ary
+        max_indx = np.stack(np.where(lbl_mtx == curr_feature)).max(axis=1).round() + min_ary
 
-        # add size to list
-        size_lst.append(centroid - np.stack(np.where(lbl_mtx == curr_feature)).min(axis=1).round())
+        centroid_lst.append((min_indx, centroid, max_indx))
 
-        # update centroid to true centoid and add to list
-        centroid_lst.append(centroid + min_ary)
-
-    return centroid_lst, size_lst
+    return centroid_lst
 
 def get_calcium_measurements(roi_indx_lst, dicom_lst, debug=False):
     """
