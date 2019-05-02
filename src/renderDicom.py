@@ -13,7 +13,7 @@ import matplotlib as mpl
 
 from matplotlib import pyplot, cm, path, patches
 from matplotlib.patches import Circle
-from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
+from matplotlib.widgets import Cursor, LassoSelector, TextBox
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
@@ -52,6 +52,8 @@ mpl.rcParams['keymap.all_axes'] = ''
 
 mpl.rcParams['figure.figsize'] = (7.5, 7.5)
 
+pyplot.style.use('dark_background')
+
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 
 # main class
@@ -82,7 +84,8 @@ class RenderDicomSeries:
         self.valid_location_types = [v for k,v in self.locations_markers.items()]
 
         # store imputs
-        self.ax = ax
+        self.ax = ax[0]
+        self.text_ax = ax[1]
         self.dicom_lst = dicom_lst
 
         # initialize current selections
@@ -149,9 +152,8 @@ class RenderDicomSeries:
         # finish initialiazation
         self._update_image(self.curr_idx)
 
-        # determine
-        sys.stdout.write("Slide 0; " + INITIAL_USR_MSG)
-        sys.stdout.flush()
+        # write initial message
+        self.text_ax.annotate("Slide 0; " + INITIAL_USR_MSG, (0, 0))
 
         # initialize lasso selector
         self.curr_lasso = LassoSelector(self.ax, self._lasso, button=1)
@@ -710,7 +712,6 @@ class RenderDicomSeries:
             self.ax.figure.canvas.draw()
 
         else:
-
             # get curr roi type
             roi_lst = list(set([REGEX_PARSE.search(x).group() for x in self.roi_data.keys()]))
 
@@ -748,6 +749,10 @@ class RenderDicomSeries:
 
             # get unique coords
             roi_indx_lst = list(set(roi_indx_lst))
+
+            # skip if we don't have any indicies
+            if not len(roi_indx_lst):
+                return
 
             # get calciums
             temp_ca_lst = get_calcifications(roi_indx_lst, self.dicom_lst)
@@ -853,12 +858,17 @@ def plotDicom(dicom_lst, settings_path, previous_directory=None):
     mpl.rcParams['toolbar'] = 'None'
 
     # make fig object
-    fig, (ax) = pyplot.subplots(1)
+    fig, (ax) = pyplot.subplots(2)
 
     # make figure
-    ax.set_aspect('equal')
-    ax.axis('off')
-    cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
+    ax[0].set_aspect('equal')
+    ax[0].axis('off')
+
+    ax[1].set_aspect('equal')
+    ax[1].axis('off')
+
+
+    cursor = Cursor(ax[0], useblit=True, color='red', linewidth=1)
 
     # connect to function
     if previous_directory is None:
