@@ -24,7 +24,7 @@ from src.process_roi import get_roi_indicies
 INITIAL_USR_MSG = "Please select a anatomic landmark"
 CONTRAST_SCALE = 5
 
-DEFAULT_Z_AROUND_CENTER = 2
+DEFAULT_Z_AROUND_CENTER = 1
 
 COLOR_MAP = [
     "blue",
@@ -158,7 +158,7 @@ class RenderDicomSeries:
             "Slide 0\n" + INITIAL_USR_MSG, TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
-            bbox={'facecolor':'red', 'alpha':0.5, 'pad':10}
+            bbox={'facecolor':'red', 'alpha':0.7, 'pad':10}
         )
 
         # initialize lasso selector
@@ -659,7 +659,7 @@ class RenderDicomSeries:
             TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
-            bbox={'facecolor':'red', 'alpha':0.5, 'pad':10}
+            bbox={'facecolor':'red', 'alpha':0.7, 'pad':10}
         )
 
         # draw image
