@@ -158,7 +158,7 @@ class RenderDicomSeries:
             "Slide 0\n" + INITIAL_USR_MSG, TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
-            bbox={'facecolor':'red', 'alpha':0.7, 'pad':10}
+            bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
 
         # initialize lasso selector
@@ -659,7 +659,7 @@ class RenderDicomSeries:
             TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
-            bbox={'facecolor':'red', 'alpha':0.7, 'pad':10}
+            bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
 
         # draw image
@@ -873,20 +873,30 @@ def plotDicom(dicom_lst, settings_path, previous_directory=None):
     mpl.rcParams['toolbar'] = 'None'
 
     # make fig object
-    fig, ax = pyplot.subplots(1)
+    #fig, ax = pyplot.subplots(1)
+    fig = pyplot.figure(constrained_layout=True)
     fig.subplots_adjust(hspace=0,wspace=0,left=0,right=1,top=1)
 
-    # make figure
-    ax.set_aspect('equal')
-    ax.axis('off')
+    # make grid space
+    gs = fig.add_gridspec(20, 20)
 
-    cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
+    # first col (for micro calcium)
+    u_ca_col = fig.add_subplot(gs[0:20, 0:3])
+    u_ca_col.set_aspect('equal')
+    u_ca_col.axis('off')
+
+    # 2nd to 10th col
+    fig_ax = fig.add_subplot(gs[0:20, 3:20])
+    fig_ax.set_aspect('equal')
+    fig_ax.axis('off')
+
+    cursor = Cursor(fig_ax, useblit=True, color='red', linewidth=1)
 
     # connect to function
     if previous_directory is None:
-        dicomRenderer = RenderDicomSeries(ax, dicom_lst, settings_path)
+        dicomRenderer = RenderDicomSeries(fig_ax, dicom_lst, settings_path)
     else:
-        dicomRenderer = RenderDicomSeries(ax, dicom_lst, settings_path, previous_directory)
+        dicomRenderer = RenderDicomSeries(fig_ax, dicom_lst, settings_path, previous_directory)
 
     dicomRenderer.connect()
     pyplot.show()
