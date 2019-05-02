@@ -11,8 +11,8 @@ import pandas as pd
 import deepdish as dd
 import matplotlib as mpl
 
-from matplotlib import pyplot, cm, path, patches
-from matplotlib.patches import Circle
+from matplotlib import pyplot, cm, path
+from matplotlib.patches import Circle, PathPatch
 from matplotlib.widgets import Cursor, LassoSelector
 
 # import user fefined libraries
@@ -56,6 +56,8 @@ pyplot.style.use('dark_background')
 
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 
+TEXT_LOC = (10, 480)
+
 # main class
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path, previous_path=None):
@@ -84,8 +86,7 @@ class RenderDicomSeries:
         self.valid_location_types = [v for k,v in self.locations_markers.items()]
 
         # store imputs
-        self.ax = ax[0]
-        self.text_ax = ax[1]
+        self.ax = ax
         self.dicom_lst = dicom_lst
 
         # initialize current selections
@@ -124,7 +125,7 @@ class RenderDicomSeries:
                 if ver_path:
                     curr_class = REGEX_PARSE.search(curr_roi).group()
                     curr_color = self.roi_colors[curr_class]
-                    patch = patches.PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
+                    patch = PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
                     self.roi_data[curr_roi] = patch
                     patch.set_visible(False)
                     self.ax.add_patch(patch)
@@ -153,10 +154,11 @@ class RenderDicomSeries:
         self._update_image(self.curr_idx)
 
         # write initial message
-        self.text_msg = self.text_ax.annotate(
-            "Slide 0\n" + INITIAL_USR_MSG, (0, 0),
+        self.text_msg = self.ax.annotate(
+            "Slide 0\n" + INITIAL_USR_MSG, TEXT_LOC,
             horizontalalignment = "left",
-            verticalalignment = "top"
+            verticalalignment = "top",
+            bbox={'facecolor':'red', 'alpha':0.5, 'pad':10}
         )
 
         # initialize lasso selector
@@ -529,7 +531,7 @@ class RenderDicomSeries:
             # save patch
             curr_class = REGEX_PARSE.search(self.curr_selection).group()
             curr_color = self.roi_colors[curr_class]
-            patch = patches.PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
+            patch = PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
             self.roi_data[self.curr_selection] = patch
             self.ax.add_patch(patch)
 
@@ -652,12 +654,16 @@ class RenderDicomSeries:
 
         # write message
         self.text_msg.remove()
-        self.text_msg = self.text_ax.annotate(usr_msg, (0, 0), \
-                                              horizontalalignment = "left",
-                                              verticalalignment = "top",)
+        self.text_msg = self.ax.annotate(
+            usr_msg,
+            TEXT_LOC,
+            horizontalalignment = "left",
+            verticalalignment = "top",
+            bbox={'facecolor':'red', 'alpha':0.5, 'pad':10}
+        )
 
         # draw image
-        self.text_ax.figure.canvas.draw()
+        self.ax.figure.canvas.draw()
 
     def _reset_location(self):
         """
@@ -867,18 +873,14 @@ def plotDicom(dicom_lst, settings_path, previous_directory=None):
     mpl.rcParams['toolbar'] = 'None'
 
     # make fig object
-    fig, (ax) = pyplot.subplots(2)
-    pyplot.subplots_adjust(hspace=0, wspace=0)
+    fig, ax = pyplot.subplots(1)
+    fig.subplots_adjust(hspace=0,wspace=0,left=0,right=1,top=1)
 
     # make figure
-    ax[0].set_aspect('equal')
-    ax[0].axis('off')
+    ax.set_aspect('equal')
+    ax.axis('off')
 
-    ax[1].set_aspect('equal')
-    ax[1].axis('off')
-
-
-    cursor = Cursor(ax[0], useblit=True, color='red', linewidth=1)
+    cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
 
     # connect to function
     if previous_directory is None:
