@@ -153,7 +153,7 @@ class RenderDicomSeries:
         self._update_image(self.curr_idx)
 
         # write initial message
-        self.text_msg = self.text_ax.annotate("Slide 0; " + INITIAL_USR_MSG, (0, 0), horizontalalignment = "left")
+        self.text_msg = self.text_ax.annotate("Slide 0\n" + INITIAL_USR_MSG, (0, 0), horizontalalignment = "left")
 
         # initialize lasso selector
         self.curr_lasso = LassoSelector(self.ax, self._lasso, button=1)
@@ -644,7 +644,7 @@ class RenderDicomSeries:
             usr_msg = "Current selection: {}{}".format(self.curr_selection, slice_loc_str)
 
         # concatenate messges
-        usr_msg = "\rSlide {}; {}".format(str(self.curr_idx), usr_msg)
+        usr_msg = "Slide {}\n{}".format(str(self.curr_idx), usr_msg)
 
         # write message
         self.text_msg.remove()
