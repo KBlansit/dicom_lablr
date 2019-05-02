@@ -13,7 +13,7 @@ import matplotlib as mpl
 
 from matplotlib import pyplot, cm, path, patches
 from matplotlib.patches import Circle
-from matplotlib.widgets import Cursor, LassoSelector, TextBox
+from matplotlib.widgets import Cursor, LassoSelector
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
@@ -153,7 +153,7 @@ class RenderDicomSeries:
         self._update_image(self.curr_idx)
 
         # write initial message
-        self.text_ax.annotate("Slide 0; " + INITIAL_USR_MSG, (0, 0))
+        self.text_msg = self.text_ax.annotate("Slide 0; " + INITIAL_USR_MSG, (0, 0), horizontalalignment = "left")
 
         # initialize lasso selector
         self.curr_lasso = LassoSelector(self.ax, self._lasso, button=1)
@@ -647,8 +647,11 @@ class RenderDicomSeries:
         usr_msg = "\rSlide {}; {}".format(str(self.curr_idx), usr_msg)
 
         # write message
-        sys.stdout.write(usr_msg.ljust(80))
-        sys.stdout.flush()
+        self.text_msg.remove()
+        self.text_msg = self.text_ax.annotate(usr_msg, (0, 0))
+
+        # draw image
+        self.text_ax.figure.canvas.draw()
 
     def _reset_location(self):
         """
@@ -859,6 +862,7 @@ def plotDicom(dicom_lst, settings_path, previous_directory=None):
 
     # make fig object
     fig, (ax) = pyplot.subplots(2)
+    pyplot.subplots_adjust(hspace=0, wspace=0)
 
     # make figure
     ax[0].set_aspect('equal')
