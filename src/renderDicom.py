@@ -674,7 +674,6 @@ class RenderDicomSeries:
         annotation_usr_msg = "Slide {}\n{}".format(str(self.curr_idx), annotation_usr_msg)
 
         # construct calcium message
-        """
         if not len(self.ca_lst):
             ca_usr_msg = INITIAL_CA_PATCH_USR_MSG
         else:
@@ -683,7 +682,7 @@ class RenderDicomSeries:
             curr_ca_patch = self.ca_lst[self.curr_ca_selection]
 
             # info about patch
-            "Calcium patch {} of {}\n".format(
+            ca_info = "Calcium patch {} of {}\n".format(
                 self.curr_ca_selection + 1,
                 len(self.ca_lst),
             )
@@ -691,7 +690,9 @@ class RenderDicomSeries:
             # get measurements
             patch_ag, patch_vol = curr_ca_patch.get_measurements()
             patch_measurements_msg = "[Ag: {}, Vol: {}]".format(patch_ag, patch_vol)
-        """
+
+            # combine
+            ca_usr_msg = ca_info + patch_measurements_msg
 
         # write message
         self.annotation_text_msg.remove()

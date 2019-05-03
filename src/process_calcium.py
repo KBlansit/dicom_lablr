@@ -53,7 +53,7 @@ class CalciumPatch(object):
         temp_msk_mtx[non_label_indx] = 0
 
         # get calcium score
-        self.ca_scor = get_agatston_score(temp_msk_mtx.copy(), px_area)
+        self.ca_score = get_agatston_score(temp_msk_mtx.copy(), px_area)
 
         # get volume
         self.ca_vol = calculate_calcium_volume(temp_msk_mtx.copy(), px_area, slice_thickness)
@@ -81,7 +81,7 @@ class CalciumPatch(object):
         """
         returns ca measurements
         """
-
+        return self.ca_score, self.ca_vol
 
 def rescale_dicom(curr_dicom):
     """
