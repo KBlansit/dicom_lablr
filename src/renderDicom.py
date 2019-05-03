@@ -21,7 +21,8 @@ from src.process_calcium import get_calcium_measurements, get_calcifications
 from src.process_roi import get_roi_indicies
 
 # global messages
-INITIAL_USR_MSG = "Please select a anatomic landmark"
+INITIAL_ANNOTATION_USR_MSG = "Please select a anatomic landmark."
+INITIAL_CA_PATCH_USR_MSG = "No detected calcium patches."
 CONTRAST_SCALE = 5
 
 DEFAULT_Z_AROUND_CENTER = 1
@@ -56,7 +57,8 @@ pyplot.style.use('dark_background')
 
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 
-TEXT_LOC = (10, 480)
+ANNOTATION_INFO_TEXT_LOC = (10, 480)
+CALCIUM_INFO_TEXT_LOC = (10, 10)
 
 # main class
 class RenderDicomSeries:
@@ -97,6 +99,7 @@ class RenderDicomSeries:
         # calciums
         self.showing_calcium = False
         self.ca_lst = []
+        self.curr_ca_selection = 0
 
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
@@ -153,9 +156,17 @@ class RenderDicomSeries:
         # finish initialiazation
         self._update_image(self.curr_idx)
 
-        # write initial message
-        self.text_msg = self.ax.annotate(
-            "Slide 0\n" + INITIAL_USR_MSG, TEXT_LOC,
+        # write initial message for annotation info box
+        self.annotation_text_msg = self.ax.annotate(
+            "Slide 0\n" + INITIAL_ANNOTATION_USR_MSG, ANNOTATION_INFO_TEXT_LOC,
+            horizontalalignment = "left",
+            verticalalignment = "top",
+            bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
+        )
+
+        # write initial message for micro calcium box
+        self.ca_patch_text_msg = self.ax.annotate(
+            INITIAL_CA_PATCH_USR_MSG, CALCIUM_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
@@ -476,6 +487,13 @@ class RenderDicomSeries:
             for _ in range(10):
                 self._next_image()
 
+        # select next/previous calcium
+        elif event.key == "left":
+            pass
+
+        elif event.key == "right":
+            pass
+
         # resets contrast window
         elif event.key == "v":
             self.im.set_clim(self.default_contrast_window)
@@ -609,7 +627,7 @@ class RenderDicomSeries:
         """
         # determine if there's a slice chosen
         if self.curr_selection is None:
-            usr_msg = INITIAL_USR_MSG
+            annotation_usr_msg = INITIAL_ANNOTATION_USR_MSG
         else:
             # determine if slice has already been set
             if self.curr_selection in self.roi_data:
@@ -647,16 +665,43 @@ class RenderDicomSeries:
                 else:
                     slice_loc_str = ""
 
-            usr_msg = "Current selection: {}{}".format(self.curr_selection, slice_loc_str)
+            annotation_usr_msg = "Current selection: {}{}".format(self.curr_selection, slice_loc_str)
 
         # concatenate messges
-        usr_msg = "Slide {}\n{}".format(str(self.curr_idx), usr_msg)
+        annotation_usr_msg = "Slide {}\n{}".format(str(self.curr_idx), annotation_usr_msg)
 
+        # construct calcium message
+        if not len(self.ca_lst):
+            ca_usr_msg = INITIAL_CA_PATCH_USR_MSG
+        else:
+
+            # get ca patch
+            curr_ca_patch = self.ca_lst[self.curr_ca_selection]
+
+            # info about patch
+            "Calcium patch {} of {}\n".format(
+                self.curr_ca_selection + 1,
+                len(self.ca_lst),
+            )
+
+            """
+            # get measurements
+            patch_ag, patch_vol = curr_ca_patch.get_measurements()
+            patch_measurements_msg = "[Ag: {}, Vol: {}]".format(patch_ag, patch_vol)
+            """
+        
         # write message
-        self.text_msg.remove()
-        self.text_msg = self.ax.annotate(
-            usr_msg,
-            TEXT_LOC,
+        self.annotation_text_msg.remove()
+        self.annotation_text_msg = self.ax.annotate(
+            annotation_usr_msg, ANNOTATION_INFO_TEXT_LOC,
+            horizontalalignment = "left",
+            verticalalignment = "top",
+            bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
+        )
+
+        self.ca_patch_text_msg.remove()
+        self.ca_patch_text_msg = self.ax.annotate(
+            curr_ca_patch, CALCIUM_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
@@ -880,17 +925,13 @@ def plotDicom(dicom_lst, settings_path, previous_directory=None):
     # make grid space
     gs = fig.add_gridspec(20, 20)
 
-    # first col (for micro calcium)
-    u_ca_col = fig.add_subplot(gs[0:20, 0:3])
-    u_ca_col.set_aspect('equal')
-    u_ca_col.axis('off')
-
-    # 2nd to 10th col
-    fig_ax = fig.add_subplot(gs[0:20, 3:20])
+    # figure ax
+    fig_ax = fig.add_subplot(gs[0:20, 0:20])
     fig_ax.set_aspect('equal')
     fig_ax.axis('off')
 
-    cursor = Cursor(fig_ax, useblit=True, color='red', linewidth=1)
+    # add cursor to fig axis
+    cursor = Cursor(fig_ax, useblit=True, color='red', linewidth=0.5)
 
     # connect to function
     if previous_directory is None:
