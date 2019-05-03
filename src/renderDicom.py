@@ -200,16 +200,29 @@ class RenderDicomSeries:
                 else:
                     self.circle_data[lndmrk] = None
 
+            # initialize ROIs
             for curr_roi, ver_path in self.data_dict["vert_data"].items():
                 if ver_path:
+
+                    # determine types
                     curr_class = REGEX_PARSE.search(curr_roi).group()
                     curr_color = self.roi_colors[curr_class]
+
+                    # set lasso patch
                     patch = PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
                     self.roi_data[curr_roi] = patch
                     patch.set_visible(False)
                     self.ax.add_patch(patch)
+
+                    # initialize ca patches
+                    self.curr_selection = curr_roi
+                    self._update_attenuation()
+
                 else:
                     self.roi_data[curr_roi] = None
+
+                # reset curr selection
+                self.curr_selection = None
 
         else:
             # initialize data dict
@@ -621,7 +634,6 @@ class RenderDicomSeries:
         # flip showing calcium flag
         elif event.key == " ":
             self.showing_calcium = not self.showing_calcium
-            print(self.showing_calcium)
 
         # else quit
         else:
