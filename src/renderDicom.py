@@ -57,11 +57,13 @@ pyplot.style.use('dark_background')
 
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 
-ANNOTATION_INFO_TEXT_LOC = (5, 480)
+ANNOTATION_INFO_TEXT_LOC = (5, 500)
 
-CALCIUM_INFO_TEXT_LOC = (5, 10)
+CALCIUM_INFO_TEXT_LOC = (5, 15)
 
 MAX_NUM_CA_PATCH_LINES = 5
+
+FONT_SIZE = 8
 
 # main class
 class CaPatchContainer:
@@ -250,6 +252,7 @@ class RenderDicomSeries:
             "Slide 0\n" + INITIAL_ANNOTATION_USR_MSG, ANNOTATION_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
+            fontsize = FONT_SIZE,
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
 
@@ -258,6 +261,7 @@ class RenderDicomSeries:
             INITIAL_CA_PATCH_USR_MSG, CALCIUM_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
+            fontsize = FONT_SIZE,
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
 
@@ -821,6 +825,7 @@ class RenderDicomSeries:
             annotation_usr_msg, ANNOTATION_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
+            fontsize = FONT_SIZE,
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
 
@@ -830,6 +835,7 @@ class RenderDicomSeries:
             curr_ca_patch, CALCIUM_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
+            fontsize = FONT_SIZE,
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
         """
