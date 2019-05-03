@@ -530,7 +530,10 @@ class RenderDicomSeries:
             return
 
         # print console msg
-        self._print_console_msg()
+        if event.key == "return" or event.key == "enter":
+            pass
+        else:
+            self._print_console_msg()
 
     def _lasso(self, verts):
         """
@@ -671,6 +674,7 @@ class RenderDicomSeries:
         annotation_usr_msg = "Slide {}\n{}".format(str(self.curr_idx), annotation_usr_msg)
 
         # construct calcium message
+        """
         if not len(self.ca_lst):
             ca_usr_msg = INITIAL_CA_PATCH_USR_MSG
         else:
@@ -684,12 +688,11 @@ class RenderDicomSeries:
                 len(self.ca_lst),
             )
 
-            """
             # get measurements
             patch_ag, patch_vol = curr_ca_patch.get_measurements()
             patch_measurements_msg = "[Ag: {}, Vol: {}]".format(patch_ag, patch_vol)
-            """
-        
+        """
+
         # write message
         self.annotation_text_msg.remove()
         self.annotation_text_msg = self.ax.annotate(
@@ -699,6 +702,7 @@ class RenderDicomSeries:
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
 
+        """
         self.ca_patch_text_msg.remove()
         self.ca_patch_text_msg = self.ax.annotate(
             curr_ca_patch, CALCIUM_INFO_TEXT_LOC,
@@ -706,6 +710,7 @@ class RenderDicomSeries:
             verticalalignment = "top",
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
+        """
 
         # draw image
         self.ax.figure.canvas.draw()

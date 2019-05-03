@@ -21,7 +21,8 @@ MIN_AGASTON_AREA = 1
 CONNECTED_COMPONENTS_SHAPE = np.ones([3, 3, 3])
 
 class CalciumPatch(object):
-    def __init__(self, curr_label, lbl_mtx, min_ary):
+    def __init__(self, curr_label, lbl_mtx, msk_mtx, min_ary, px_area, \
+                 slice_thickness):
         """
         given a curr_label, lbl_mtx, img_mtx, min_ary get:
             - centroid of patch
@@ -46,6 +47,17 @@ class CalciumPatch(object):
         self.rect = Rectangle(xy_loc, -width, -height, 1, edgecolor="red", fill = None)
         self.rect.PLOTTED = False
 
+        # set up to make measurements
+        temp_msk_mtx = msk_mtx.copy()
+        non_label_indx = np.where(lbl_mtx != curr_label)
+        temp_msk_mtx[non_label_indx] = 0
+
+        # get calcium score
+        self.ca_scor = get_agatston_score(temp_msk_mtx.copy(), px_area)
+
+        # get volume
+        self.ca_vol = calculate_calcium_volume(temp_msk_mtx.copy(), px_area, slice_thickness)
+
     def get_rectangle(self):
         """
         returns matplotlib rectangle
@@ -64,6 +76,11 @@ class CalciumPatch(object):
         setter for rect
         """
         self.rect.set_visible(bool)
+
+    def get_measurements(self):
+        """
+        returns ca measurements
+        """
 
 
 def rescale_dicom(curr_dicom):
@@ -238,13 +255,30 @@ def get_calcifications(roi_indx_lst, dicom_lst):
     # label image
     lbl_mtx, n_features = label(msk_mtx, CONNECTED_COMPONENTS_SHAPE)
 
+    # get offset of array
     min_ary = np.array([x_rng[0], y_rng[0], min(s_vals)])
+
+    # get pixel spacing
+    px_area = np.prod(dicom_lst[0].PixelSpacing)
+
+    # get space between slices
+    slice_thickness = abs(float(dicom_lst[0][0x0018, 0x0050].value))
 
     # get centroids
     ca_lst = []
     for curr_feature in range(1, n_features + 1):
 
-        ca_patch = CalciumPatch(curr_feature, lbl_mtx, min_ary)
+        # make calcium patch obj
+        ca_patch = CalciumPatch(
+            curr_feature,
+            lbl_mtx,
+            msk_mtx,
+            min_ary,
+            px_area,
+            slice_thickness,
+        )
+
+        # add to list
         ca_lst.append(ca_patch)
 
     return ca_lst
