@@ -57,9 +57,9 @@ pyplot.style.use('dark_background')
 
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 
-ANNOTATION_INFO_TEXT_LOC = (10, 480)
+ANNOTATION_INFO_TEXT_LOC = (5, 480)
 
-CALCIUM_INFO_TEXT_LOC = (10, 10)
+CALCIUM_INFO_TEXT_LOC = (5, 10)
 
 MAX_NUM_CA_PATCH_LINES = 5
 
@@ -333,6 +333,11 @@ class RenderDicomSeries:
                     curr_patch.set_visible(True)
                 else:
                     curr_patch.set_visible(False)
+
+        # don't show
+        else:
+            for curr_patch in self.ca_patches.ca_patch_lst:
+                curr_patch.set_visible(False)
 
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
