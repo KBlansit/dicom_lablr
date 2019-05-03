@@ -22,7 +22,7 @@ CONNECTED_COMPONENTS_SHAPE = np.ones([3, 3, 3])
 
 class CalciumPatch(object):
     def __init__(self, curr_label, lbl_mtx, msk_mtx, min_ary, px_area, \
-                 slice_thickness):
+                 slice_thickness, roi_name):
         """
         given a curr_label, lbl_mtx, img_mtx, min_ary get:
             - centroid of patch
@@ -31,10 +31,10 @@ class CalciumPatch(object):
             - volume
             - ag score
         """
+        # set roi name
+        self.roi_name = roi_name
 
-        # set indicies
-        #self.indicies =
-
+        # set locations
         self.min_indx = np.stack(np.where(lbl_mtx == curr_label)).min(axis=1).round() + min_ary
         self.centroid = np.stack(np.where(lbl_mtx == curr_label)).mean(axis=1).round() + min_ary
         self.max_indx = np.stack(np.where(lbl_mtx == curr_label)).max(axis=1).round() + min_ary
@@ -82,6 +82,34 @@ class CalciumPatch(object):
         returns ca measurements
         """
         return self.ca_score, self.ca_vol
+
+    def construct_message(self):
+        """
+        construct message
+        """
+
+        # make centroid
+        info_msg = "Centroid: {} {}. Slice {}.".format(*self.centroid)
+
+        # get measurements
+        curr_ca, curr_vol = self.get_measurements()
+
+        # construct measurements message
+        measurements_msg = " [Ag: {}, Vol: {}].".format(
+            str(round(curr_ca)),
+            str(round(curr_vol)),
+        )
+
+        return info_msg + measurements_msg
+
+    def __del__(self):
+        """
+        deconstructor
+        """
+        # remove rectanlge
+        self.rect.set_visible(False)
+        self.rect.remove()
+
 
 def rescale_dicom(curr_dicom):
     """
@@ -223,7 +251,7 @@ def calculate_calcium_volume(mskd_mtx, pixel_spacing, slice_thickness):
     # calculate volume
     return num_vox * vol_vox
 
-def get_calcifications(roi_indx_lst, dicom_lst):
+def get_calcifications(roi_indx_lst, dicom_lst, roi_name):
     """
     INPUTS:
         roi_indx_lst:
@@ -276,6 +304,7 @@ def get_calcifications(roi_indx_lst, dicom_lst):
             min_ary,
             px_area,
             slice_thickness,
+            roi_name,
         )
 
         # add to list

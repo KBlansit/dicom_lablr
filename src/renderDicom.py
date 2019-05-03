@@ -58,9 +58,86 @@ pyplot.style.use('dark_background')
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 
 ANNOTATION_INFO_TEXT_LOC = (10, 480)
+
 CALCIUM_INFO_TEXT_LOC = (10, 10)
 
+MAX_NUM_CA_PATCH_LINES = 5
+
 # main class
+class CaPatchContainer:
+    def __init__(self):
+        self.ca_patch_lst = []
+
+        self.curr_pos = None
+
+    def add_patch(self, ca_patch_obj):
+        """
+        adds patches to list
+        """
+
+        # if we don't have any previous patches, then we initialize curr pos
+        if len(self.ca_patch_lst):
+            self.curr_pos = 0
+
+        # add patch
+        self.ca_patch_lst.append(ca_patch_obj)
+
+    def remove_patches(self, roi_name):
+        """
+        removes patches accoridng to roi_name
+        """
+        # only return items in list that do not have roi name
+        self.ca_patch_lst = [x for x in self.ca_patch_lst if x.roi_name != roi_name]
+
+        # if we don't have any more previous patches, then we set pos to None
+        if len(self.ca_patch_lst):
+            self.curr_pos = None
+
+    def get_print_statement(self):
+        """
+        construct print statement
+        """
+
+        # without any, return default message
+        if not len(self.ca_patch_lst):
+            return INITIAL_CA_PATCH_USR_MSG
+
+        # determine how many lines to do
+        elif len(self.ca_patch_lst) >= MAX_NUM_CA_PATCH_LINES:
+            # get number before and after
+            num_before = int(np.floor(MAX_NUM_CA_PATCH_LINES/2))
+            num_after = int(np.ceil(MAX_NUM_CA_PATCH_LINES/2))
+        else:
+            # get number before and after
+            num_before = int(np.floor(len(self.ca_patch_lst) - 1))
+            num_after = int(np.ceil(len(self.ca_patch_lst) - 1))
+
+        # make slice
+        slc_rng = range(self.curr_pos - num_before, self.curr_pos + num_after + 1)
+
+        # iterate over slices
+        rslt_msg_lst = []
+        for i in slc_rng:
+
+            # get base message
+            curr_msg = self.ca_patch_lst[i].construct_message()
+
+            # determine prefix to use
+            if self.curr_pos == i:
+                prefix = "> "
+            else:
+                prefix = "- "
+
+            # append
+            rslt_msg_lst.append(prefix + curr_msg)
+
+        # combine messages
+        return "\n".join(rslt_msg_lst)
+
+    def get_rectangles(self):
+        # get rectangle for each patch
+        return [x.get_rectangle() for x in self.ca_patch_lst]
+
 class RenderDicomSeries:
     def __init__(self, ax, dicom_lst, settings_path, previous_path=None):
         # import settings
@@ -98,8 +175,7 @@ class RenderDicomSeries:
 
         # calciums
         self.showing_calcium = False
-        self.ca_lst = []
-        self.curr_ca_selection = 0
+        self.ca_patches = CaPatchContainer()
 
         # render to image
         self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
@@ -235,15 +311,15 @@ class RenderDicomSeries:
 
         # determine if we need to show calcium
         if self.showing_calcium:
-            for i in range(len(self.ca_lst)):
+            for curr_patch in self.ca_patches.ca_patch_lst:
                 # get min and max slice of calcium
-                min_slice, max_slice = self.ca_lst[i].get_slice_range()
+                min_slice, max_slice = curr_patch.get_slice_range()
 
                 # determine if we're on right slice
                 if min_slice <= self.curr_idx <= max_slice:
-                    self.ca_lst[i].set_visible(True)
+                    curr_patch.set_visible(True)
                 else:
-                    self.ca_lst[i].set_visible(False)
+                    curr_patch.set_visible(False)
 
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
@@ -296,6 +372,9 @@ class RenderDicomSeries:
         EFFECT:
             updates attenuation measurements
         """
+        # turn off calcium
+        self.showing_calcium = False
+
         # do only if we are currently on a valid data type
         if self.curr_selection in self.roi_data.keys():
             # get curr roi type
@@ -333,12 +412,29 @@ class RenderDicomSeries:
             # get unique coords
             roi_indx_lst = list(set(roi_indx_lst))
 
-            # do if we have indicies
-            # get calcium score
+            # remove old patches
+            self.ca_patches.remove_patches(curr_roi)
+
             if len(roi_indx_lst):
+                # get calcium score for info
                 scores = get_calcium_measurements(roi_indx_lst, self.dicom_lst)
                 ca_score = scores[0]
                 ca_vol = scores[1]
+
+                # get calcium patches
+                temp_ca_lst = get_calcifications(roi_indx_lst, self.dicom_lst, curr_roi)
+
+                # add to patch lst
+                for curr_patch in temp_ca_lst:
+                    # add patch to list
+                    self.ca_patches.add_patch(curr_patch)
+
+                    # add to ax
+                    self.ax.add_patch(curr_patch.get_rectangle())
+
+                    # set invisible
+                    curr_patch.set_visible(False)
+
             else:
                 ca_score = None
                 ca_vol = None
@@ -522,8 +618,10 @@ class RenderDicomSeries:
         elif event.key == "[":
             self._change_z_bounds(-1)
 
+        # flip showing calcium flag
         elif event.key == " ":
-            self._populate_calcium()
+            self.showing_calcium = not self.showing_calcium
+            print(self.showing_calcium)
 
         # else quit
         else:
@@ -533,6 +631,10 @@ class RenderDicomSeries:
         if event.key == "return" or event.key == "enter":
             pass
         else:
+            # update image
+            self._update_image(self.curr_idx)
+
+            # update print
             self._print_console_msg()
 
     def _lasso(self, verts):
@@ -560,11 +662,11 @@ class RenderDicomSeries:
             self.data_dict["slice_location"][self.curr_selection] = self.curr_idx
             self.data_dict["roi_bounds"][self.curr_selection] = DEFAULT_Z_AROUND_CENTER
 
-            # update image
-            self._update_image(self.curr_idx)
-
             # update measurements
             self._update_attenuation()
+
+            # update image
+            self._update_image(self.curr_idx)
 
     def _change_z_bounds(self, direction):
         """
@@ -673,6 +775,7 @@ class RenderDicomSeries:
         # concatenate messges
         annotation_usr_msg = "Slide {}\n{}".format(str(self.curr_idx), annotation_usr_msg)
 
+        """
         # construct calcium message
         if not len(self.ca_lst):
             ca_usr_msg = INITIAL_CA_PATCH_USR_MSG
@@ -693,6 +796,7 @@ class RenderDicomSeries:
 
             # combine
             ca_usr_msg = ca_info + patch_measurements_msg
+        """
 
         # write message
         self.annotation_text_msg.remove()
@@ -756,90 +860,6 @@ class RenderDicomSeries:
 
         # draw image
         self.ax.figure.canvas.draw()
-
-    def _populate_calcium(self):
-
-        # determine if we're already showing and turn off
-        if self.showing_calcium:
-            # turn off visiblity
-            for curr_rect in self.ca_lst:
-                curr_rect.set_visible(False)
-
-            # clear lists
-            self.ca_lst = []
-
-            # turn off showing calcium
-            self.showing_calcium = False
-
-            # update image
-            self._update_image(self.curr_idx)
-
-            # draw
-            self.ax.figure.canvas.draw()
-
-        else:
-            # get curr roi type
-            roi_lst = list(set([REGEX_PARSE.search(x).group() for x in self.roi_data.keys()]))
-
-            # initialize roi indx lst
-            roi_indx_lst = []
-
-            # do for all ROIs
-            for curr_roi in roi_lst:
-
-                # do for keys
-                for curr_k in [x for x in self.roi_data.keys() if x.startswith(curr_roi)]:
-                    # test if curr key has been used
-                    if not self.data_dict["vert_data"][curr_k] is None:
-
-                        # get current roi
-                        roi_path_indx = self.data_dict["vert_data"][curr_k]
-
-                        # get slice ranges
-                        curr_bounds = self.data_dict["roi_bounds"][curr_k]
-                        curr_loc = self.data_dict["slice_location"][curr_k]
-
-                        slice_range = (
-                            max(0, curr_loc - curr_bounds),
-                            min(len(self.dicom_lst), curr_loc + curr_bounds) + 1,
-                        )
-
-                        # get dims
-                        dicom_dims = self.dicom_lst[0].pixel_array.shape
-
-                        # get roi indicies
-                        curr_indx_lst = get_roi_indicies(roi_path_indx, dicom_dims, slice_range)
-
-                        # add to roi coord arry
-                        roi_indx_lst = roi_indx_lst + curr_indx_lst
-
-            # get unique coords
-            roi_indx_lst = list(set(roi_indx_lst))
-
-            # skip if we don't have any indicies
-            if not len(roi_indx_lst):
-                return
-
-            # get calciums
-            temp_ca_lst = get_calcifications(roi_indx_lst, self.dicom_lst)
-
-            # add to ca list
-            self.ca_lst = self.ca_lst + temp_ca_lst
-
-            # iterate over calcium
-            for curr_ca in self.ca_lst:
-
-                # add patch
-                self.ax.add_patch(curr_ca.get_rectangle())
-
-            # set flag
-            self.showing_calcium = True
-
-            # update image
-            self._update_image(self.curr_idx)
-
-            # draw
-            self.ax.figure.canvas.draw()
 
     def _next_image(self):
         """
