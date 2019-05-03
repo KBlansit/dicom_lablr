@@ -20,6 +20,8 @@ MIN_AGASTON_AREA = 1
 
 CONNECTED_COMPONENTS_SHAPE = np.ones([3, 3, 3])
 
+MICRO_CA_THRESH = 2
+
 class CalciumPatch(object):
     def __init__(self, curr_label, lbl_mtx, msk_mtx, min_ary, px_area, \
                  slice_thickness, roi_name):
@@ -109,7 +111,6 @@ class CalciumPatch(object):
         # remove rectanlge
         self.rect.set_visible(False)
         self.rect.remove()
-
 
 def rescale_dicom(curr_dicom):
     """
@@ -296,19 +297,20 @@ def get_calcifications(roi_indx_lst, dicom_lst, roi_name):
     ca_lst = []
     for curr_feature in range(1, n_features + 1):
 
-        # make calcium patch obj
-        ca_patch = CalciumPatch(
-            curr_feature,
-            lbl_mtx,
-            msk_mtx,
-            min_ary,
-            px_area,
-            slice_thickness,
-            roi_name,
-        )
-
-        # add to list
-        ca_lst.append(ca_patch)
+        # determine if we have enough pixels
+        if lbl_mtx[np.where(lbl_mtx == curr_feature)].shape[0] < MICRO_CA_THRESH:
+            continue
+        # make calcium patch obj and add to list
+        else:
+            ca_lst.append(CalciumPatch(
+                curr_feature,
+                lbl_mtx,
+                msk_mtx,
+                min_ary,
+                px_area,
+                slice_thickness,
+                roi_name,
+            ))
 
     return ca_lst
 
