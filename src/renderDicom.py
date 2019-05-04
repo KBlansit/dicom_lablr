@@ -172,7 +172,6 @@ class CaPatchContainer:
 
         return self.ca_patch_lst[self.curr_pos].get_ca_mask(curr_slice)
 
-
 class RenderDicomSeries:
     def __init__(self, axes, dicom_lst, settings_path, previous_path=None):
         # import settings
@@ -281,7 +280,8 @@ class RenderDicomSeries:
 
         # write initial message for annotation info box
         self.annotation_text_msg = self.txt_ax.annotate(
-            "Slide 0\n" + INITIAL_ANNOTATION_USR_MSG, ANNOTATION_INFO_TEXT_LOC,
+            INITIAL_ANNOTATION_USR_MSG + "\nCurent Location - X: 0 Y: 0 Slide: 0\n",
+            ANNOTATION_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
             fontsize = FONT_SIZE,
@@ -302,6 +302,9 @@ class RenderDicomSeries:
             fontsize = FONT_SIZE,
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
+
+        # set curr xy
+        self.curr_xy = (0, 0)
 
         # initialize lasso selector
         self.curr_lasso = LassoSelector(self.ax, self._lasso, button=1)
@@ -376,6 +379,7 @@ class RenderDicomSeries:
             mask_layer = np.zeros((512, 512))
             #mask_layer[34:125, 128: 511] = 1
 
+            """
             self.overlay_msk = self.ax.imshow(
                 mask_layer,
                 #np.zeros(self.dicom_lst[0].pixel_array.shape),
@@ -383,8 +387,10 @@ class RenderDicomSeries:
                 alpha = 0.3,
             )
 
+
             # set mask
             self.overlay_msk.set_data(mask_layer)
+            """
 
             # iterate over patches to potentially render
             for curr_patch in self.ca_patches.ca_patch_lst:
@@ -598,6 +604,23 @@ class RenderDicomSeries:
 
             # update movement data
             self.last_x, self.last_y = event.x, event.y
+
+        # only do if we don't have a lasso
+        elif not self.curr_lasso.active:
+            # get x y data
+            if event.xdata:
+                curr_x = event.xdata
+            else:
+                curr_x = self.curr_xy[0]
+            if event.ydata:
+                curr_y = event.ydata
+            else:
+                curr_y = self.curr_xy[1]
+
+            self.curr_xy = curr_x, curr_y
+
+            # update print
+            self._print_console_msg()
 
         else:
             return
@@ -815,7 +838,7 @@ class RenderDicomSeries:
         """
         # determine if there's a slice chosen
         if self.curr_selection is None:
-            annotation_usr_msg = INITIAL_ANNOTATION_USR_MSG
+            annotation_usr_msg = INITIAL_ANNOTATION_USR_MSG + "\n"
         else:
             # determine if slice has already been set
             if self.curr_selection in self.roi_data:
@@ -853,10 +876,21 @@ class RenderDicomSeries:
                 else:
                     slice_loc_str = ""
 
-            annotation_usr_msg = "Current selection: {}{}".format(self.curr_selection, slice_loc_str)
+            annotation_usr_msg = "Current selection: {}{}\n".format(self.curr_selection, slice_loc_str)
 
         # concatenate messges
-        annotation_usr_msg = "Slide {}\n{}".format(str(self.curr_idx), annotation_usr_msg)
+        if self.curr_xy:
+            annotation_usr_msg = annotation_usr_msg +\
+                "Curent Location - X: {} Y: {} Slide: {}\n".format(
+                    *[int(round(x)) for x in self.curr_xy],
+                    str(self.curr_idx),
+                )
+        elif not self.curr_xy:
+            annotation_usr_msg = annotation_usr_msg +\
+                "Curent location - X: {} Y: {} Slide: {}\n".format(
+                    *[0, 0],
+                    str(self.curr_idx),
+                )
 
         # construct calcium message
         if not len(self.ca_patches.ca_patch_lst):
@@ -864,7 +898,7 @@ class RenderDicomSeries:
         else:
             ca_usr_msg = self.ca_patches.get_print_statement()
 
-        # write message
+        # write messages
         self.annotation_text_msg.remove()
         self.annotation_text_msg = self.txt_ax.annotate(
             annotation_usr_msg, ANNOTATION_INFO_TEXT_LOC,

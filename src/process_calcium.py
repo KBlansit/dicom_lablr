@@ -131,7 +131,8 @@ class CalciumPatch(object):
 
         # make centroid
         info_msg = "Centroid: X: {} Y: {} Slice: {}.\n".format(
-            *[int(x) for x in self.centroid]
+            *[int(x) for x in self.centroid][:2][::-1],
+            int(self.centroid[-1]),
         )
 
         # get measurements
