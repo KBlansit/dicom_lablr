@@ -24,7 +24,7 @@ MICRO_CA_THRESH = 2
 
 class CalciumPatch(object):
     def __init__(self, curr_label, lbl_mtx, msk_mtx, min_ary, px_area, \
-                 slice_thickness, roi_name):
+                 slice_thickness, roi_name, shape):
         """
         given a curr_label, lbl_mtx, img_mtx, min_ary get:
             - centroid of patch
@@ -33,6 +33,10 @@ class CalciumPatch(object):
             - volume
             - ag score
         """
+        # save shape
+        self.shape = shape
+        self.min_ary = min_ary
+
         # set roi name
         self.roi_name = roi_name
 
@@ -50,8 +54,10 @@ class CalciumPatch(object):
         self.rect.PLOTTED = False
 
         # set up to make measurements
-        temp_msk_mtx = msk_mtx.copy()
         non_label_indx = np.where(lbl_mtx != curr_label)
+        self.label_indx = np.where(lbl_mtx == curr_label)
+
+        temp_msk_mtx = msk_mtx.copy()
         temp_msk_mtx[non_label_indx] = 0
 
         # get calcium score
@@ -84,6 +90,39 @@ class CalciumPatch(object):
         returns ca measurements
         """
         return self.ca_score, self.ca_vol
+
+    def get_ca_mask(self, curr_slice):
+        """
+        gets ca mask for curr slice
+        """
+        # determine slice range
+        min_slice = min(self.label_indx[2]) + self.min_ary[-1]
+        max_slice = max(self.label_indx[2]) + self.min_ary[-1]
+
+        # determine if we're within range
+        if min_slice <= curr_slice <= max_slice:
+
+            # get label indx
+            lbl_slc_indx = curr_slice - self.min_ary[-1]
+
+            # get xy indx
+            in_plane_indx = self.label_indx[2] == lbl_slc_indx
+
+            # get rslt mtx of zeros to be set to one
+            rslt_mtx = np.zeros(self.shape)
+
+            # make zero mask indx
+            zero_msk_indx = (
+                self.label_indx[0][in_plane_indx] + self.min_ary[0],
+                self.label_indx[1][in_plane_indx] + self.min_ary[1],
+            )
+
+            rslt_mtx[zero_msk_indx] = 1
+
+        else:
+            rslt_mtx = np.zeros(self.shape)
+
+        return rslt_mtx
 
     def construct_message(self):
         """
@@ -312,6 +351,7 @@ def get_calcifications(roi_indx_lst, dicom_lst, roi_name):
                 px_area,
                 slice_thickness,
                 roi_name,
+                dicom_lst[0].pixel_array.shape,
             ))
 
     return ca_lst

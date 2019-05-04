@@ -165,6 +165,14 @@ class CaPatchContainer:
             else:
                 self.curr_pos = self.curr_pos + increment
 
+    def get_ca_mask(self, curr_slice):
+        """
+        gets the calcium mask from the current pos selected for the curr_slice
+        """
+
+        return self.ca_patch_lst[self.curr_pos].get_ca_mask(curr_slice)
+
+
 class RenderDicomSeries:
     def __init__(self, axes, dicom_lst, settings_path, previous_path=None):
         # import settings
@@ -362,6 +370,23 @@ class RenderDicomSeries:
 
         # determine if we need to show calcium
         if self.showing_calcium:
+            # get mask layer
+            mask_layer = self.ca_patches.get_ca_mask(self.curr_idx)
+            mask_layer = mask_layer.astype('int')
+            mask_layer = np.zeros((512, 512))
+            #mask_layer[34:125, 128: 511] = 1
+
+            self.overlay_msk = self.ax.imshow(
+                mask_layer,
+                #np.zeros(self.dicom_lst[0].pixel_array.shape),
+                cmap='RdPu',
+                alpha = 0.3,
+            )
+
+            # set mask
+            self.overlay_msk.set_data(mask_layer)
+
+            # iterate over patches to potentially render
             for curr_patch in self.ca_patches.ca_patch_lst:
                 # get min and max slice of calcium
                 min_slice, max_slice = curr_patch.get_slice_range()
@@ -374,8 +399,16 @@ class RenderDicomSeries:
 
         # don't show
         else:
+            # set rects to invisible
             for curr_patch in self.ca_patches.ca_patch_lst:
                 curr_patch.set_visible(False)
+
+            # set mask
+            """
+            self.overlay_msk.set_data(
+                np.zeros(self.dicom_lst[0].pixel_array.shape),
+            )
+            """
 
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
@@ -624,7 +657,7 @@ class RenderDicomSeries:
         elif event.key == "down":
             self._next_image()
 
-        # scroll up and down
+        # select next/previous calcium
         elif event.key == "right":
             self.ca_patches.advance_pos(True)
         elif event.key == "left":
@@ -637,13 +670,6 @@ class RenderDicomSeries:
         elif event.key == "pagedown":
             for _ in range(10):
                 self._next_image()
-
-        # select next/previous calcium
-        elif event.key == "left":
-            pass
-
-        elif event.key == "right":
-            pass
 
         # resets contrast window
         elif event.key == "v":
@@ -676,6 +702,9 @@ class RenderDicomSeries:
         # flip showing calcium flag
         elif event.key == " ":
             self.showing_calcium = not self.showing_calcium
+
+        elif event.key == "shift":
+            self.ca_patches.get_ca_mask(self.curr_idx)
 
         # else quit
         else:
