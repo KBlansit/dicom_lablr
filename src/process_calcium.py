@@ -91,15 +91,17 @@ class CalciumPatch(object):
         """
 
         # make centroid
-        info_msg = "Centroid: {} {}. Slice {}.".format(*self.centroid)
+        info_msg = "Centroid: X: {} Y: {} Slice: {}.\n".format(
+            *[int(x) for x in self.centroid]
+        )
 
         # get measurements
         curr_ca, curr_vol = self.get_measurements()
 
         # construct measurements message
         measurements_msg = " [Ag: {}, Vol: {}].".format(
-            str(round(curr_ca)),
-            str(round(curr_vol)),
+            int(round(curr_ca)),
+            int(round(curr_vol)),
         )
 
         return info_msg + measurements_msg

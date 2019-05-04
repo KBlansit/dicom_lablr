@@ -57,13 +57,13 @@ pyplot.style.use('dark_background')
 
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 
-ANNOTATION_INFO_TEXT_LOC = (5, 500)
-
-CALCIUM_INFO_TEXT_LOC = (5, 15)
+# on scale from 0 to 1?
+ANNOTATION_INFO_TEXT_LOC = (0.15, 0.05)
+CALCIUM_INFO_TEXT_LOC = (0.15, 0.95)
 
 MAX_NUM_CA_PATCH_LINES = 5
 
-FONT_SIZE = 8
+FONT_SIZE = 10
 
 # main class
 class CaPatchContainer:
@@ -78,7 +78,7 @@ class CaPatchContainer:
         """
 
         # if we don't have any previous patches, then we initialize curr pos
-        if len(self.ca_patch_lst):
+        if not len(self.ca_patch_lst):
             self.curr_pos = 0
 
         # add patch
@@ -141,7 +141,7 @@ class CaPatchContainer:
         return [x.get_rectangle() for x in self.ca_patch_lst]
 
 class RenderDicomSeries:
-    def __init__(self, ax, dicom_lst, settings_path, previous_path=None):
+    def __init__(self, axes, dicom_lst, settings_path, previous_path=None):
         # import settings
         settings = import_anatomic_settings(settings_path)
 
@@ -167,7 +167,9 @@ class RenderDicomSeries:
         self.valid_location_types = [v for k,v in self.locations_markers.items()]
 
         # store imputs
-        self.ax = ax
+        self.ax = axes[0]
+        self.txt_ax = axes[1]
+
         self.dicom_lst = dicom_lst
 
         # initialize current selections
@@ -244,11 +246,8 @@ class RenderDicomSeries:
             self.circle_data = dict(zip(point_lst, [None for x in point_lst]))
             self.roi_data = dict(zip(roi_lst, [None for x in roi_lst]))
 
-        # finish initialiazation
-        self._update_image(self.curr_idx)
-
         # write initial message for annotation info box
-        self.annotation_text_msg = self.ax.annotate(
+        self.annotation_text_msg = self.txt_ax.annotate(
             "Slide 0\n" + INITIAL_ANNOTATION_USR_MSG, ANNOTATION_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
@@ -256,9 +255,15 @@ class RenderDicomSeries:
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
 
+        # construct calcium message
+        if not len(self.ca_patches.ca_patch_lst):
+            ca_usr_msg = INITIAL_CA_PATCH_USR_MSG
+        else:
+            ca_usr_msg = self.ca_patches.get_print_statement()
+
         # write initial message for micro calcium box
-        self.ca_patch_text_msg = self.ax.annotate(
-            INITIAL_CA_PATCH_USR_MSG, CALCIUM_INFO_TEXT_LOC,
+        self.ca_patch_text_msg = self.txt_ax.annotate(
+            ca_usr_msg, CALCIUM_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
             fontsize = FONT_SIZE,
@@ -268,6 +273,10 @@ class RenderDicomSeries:
         # initialize lasso selector
         self.curr_lasso = LassoSelector(self.ax, self._lasso, button=1)
         self.curr_lasso.active = False
+
+        # finish initialiazation
+        self._update_image(self.curr_idx)
+        self.txt_ax.figure.canvas.draw()
 
     def connect(self):
         """
@@ -378,13 +387,6 @@ class RenderDicomSeries:
             else:
                 if self.circle_data[x] is not None:
                     self.circle_data[x].set_visible(False)
-
-        """
-        # add to list
-        self.ca_slc_lst.append(slc_rng)
-        self.ca_rect_lst.append(rect)
-        """
-
 
         # update view
         self.ax.figure.canvas.draw()
@@ -796,32 +798,15 @@ class RenderDicomSeries:
         # concatenate messges
         annotation_usr_msg = "Slide {}\n{}".format(str(self.curr_idx), annotation_usr_msg)
 
-        """
         # construct calcium message
-        if not len(self.ca_lst):
+        if not len(self.ca_patches.ca_patch_lst):
             ca_usr_msg = INITIAL_CA_PATCH_USR_MSG
         else:
-
-            # get ca patch
-            curr_ca_patch = self.ca_lst[self.curr_ca_selection]
-
-            # info about patch
-            ca_info = "Calcium patch {} of {}\n".format(
-                self.curr_ca_selection + 1,
-                len(self.ca_lst),
-            )
-
-            # get measurements
-            patch_ag, patch_vol = curr_ca_patch.get_measurements()
-            patch_measurements_msg = "[Ag: {}, Vol: {}]".format(patch_ag, patch_vol)
-
-            # combine
-            ca_usr_msg = ca_info + patch_measurements_msg
-        """
+            ca_usr_msg = self.ca_patches.get_print_statement()
 
         # write message
         self.annotation_text_msg.remove()
-        self.annotation_text_msg = self.ax.annotate(
+        self.annotation_text_msg = self.txt_ax.annotate(
             annotation_usr_msg, ANNOTATION_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
@@ -829,19 +814,17 @@ class RenderDicomSeries:
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
 
-        """
         self.ca_patch_text_msg.remove()
-        self.ca_patch_text_msg = self.ax.annotate(
-            curr_ca_patch, CALCIUM_INFO_TEXT_LOC,
+        self.ca_patch_text_msg = self.txt_ax.annotate(
+            ca_usr_msg, CALCIUM_INFO_TEXT_LOC,
             horizontalalignment = "left",
             verticalalignment = "top",
             fontsize = FONT_SIZE,
             bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
         )
-        """
 
         # draw image
-        self.ax.figure.canvas.draw()
+        self.txt_ax.figure.canvas.draw()
 
     def _reset_location(self):
         """
@@ -975,18 +958,21 @@ def plotDicom(dicom_lst, settings_path, previous_directory=None):
     gs = fig.add_gridspec(20, 20)
 
     # figure ax
-    fig_ax = fig.add_subplot(gs[0:20, 0:20])
+    fig_ax = fig.add_subplot(gs[0:20, 4:20])
     fig_ax.set_aspect('equal')
     fig_ax.axis('off')
+
+    txt_ax = fig.add_subplot(gs[0:20, 0:4])
+    txt_ax.axis('off')
 
     # add cursor to fig axis
     cursor = Cursor(fig_ax, useblit=True, color='red', linewidth=0.5)
 
     # connect to function
     if previous_directory is None:
-        dicomRenderer = RenderDicomSeries(fig_ax, dicom_lst, settings_path)
+        dicomRenderer = RenderDicomSeries((fig_ax, txt_ax), dicom_lst, settings_path)
     else:
-        dicomRenderer = RenderDicomSeries(fig_ax, dicom_lst, settings_path, previous_directory)
+        dicomRenderer = RenderDicomSeries((fig_ax, txt_ax), dicom_lst, settings_path, previous_directory)
 
     dicomRenderer.connect()
     pyplot.show()
