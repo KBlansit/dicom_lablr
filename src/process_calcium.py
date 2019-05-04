@@ -99,7 +99,7 @@ class CalciumPatch(object):
         curr_ca, curr_vol = self.get_measurements()
 
         # construct measurements message
-        measurements_msg = " [Ag: {}, Vol: {}].".format(
+        measurements_msg = "   [Ag: {}, Vol: {}].".format(
             int(round(curr_ca)),
             int(round(curr_vol)),
         )

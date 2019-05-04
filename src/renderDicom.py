@@ -111,8 +111,8 @@ class CaPatchContainer:
             num_after = int(np.ceil(MAX_NUM_CA_PATCH_LINES/2))
         else:
             # get number before and after
-            num_before = int(np.floor(len(self.ca_patch_lst) - 1))
-            num_after = int(np.ceil(len(self.ca_patch_lst) - 1))
+            num_before = int(np.floor((len(self.ca_patch_lst) - 1)/2))
+            num_after = int(np.ceil((len(self.ca_patch_lst) - 1)/2))
 
         # make slice
         slc_rng = range(self.curr_pos - num_before, self.curr_pos + num_after + 1)
@@ -134,7 +134,7 @@ class CaPatchContainer:
             rslt_msg_lst.append(prefix + curr_msg)
 
         # combine messages
-        return "\n".join(rslt_msg_lst)
+        return "\n\n".join(rslt_msg_lst)
 
     def get_rectangles(self):
         # get rectangle for each patch
