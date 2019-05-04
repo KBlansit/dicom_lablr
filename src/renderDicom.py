@@ -92,8 +92,10 @@ class CaPatchContainer:
         self.ca_patch_lst = [x for x in self.ca_patch_lst if x.roi_name != roi_name]
 
         # if we don't have any more previous patches, then we set pos to None
-        if len(self.ca_patch_lst):
+        if not len(self.ca_patch_lst):
             self.curr_pos = None
+        elif self.curr_pos >= len(self.ca_patch_lst):
+            self.curr_pos = len(self.ca_patch_lst) - 1
 
     def get_print_statement(self):
         """
