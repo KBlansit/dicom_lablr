@@ -121,6 +121,10 @@ class CaPatchContainer:
         rslt_msg_lst = []
         for i in slc_rng:
 
+            # reindex if necessary
+            if i >= len(self.ca_patch_lst):
+                i = abs(len(self.ca_patch_lst) - i)
+
             # get base message
             curr_msg = self.ca_patch_lst[i].construct_message()
 
@@ -139,6 +143,27 @@ class CaPatchContainer:
     def get_rectangles(self):
         # get rectangle for each patch
         return [x.get_rectangle() for x in self.ca_patch_lst]
+
+    def advance_pos(self, forward = True):
+        """
+        advance either forward or backwards depending on forward (True => Forward)
+        """
+        # determine if pos is set
+        if self.curr_pos != None:
+
+            # determine increment
+            if forward:
+                increment = 1
+            else:
+                increment = - 1
+
+            # determine if we can increment
+            if self.curr_pos + increment == -1:
+                self.curr_pos = len(self.ca_patch_lst) - 1
+            elif self.curr_pos + increment >= len(self.ca_patch_lst):
+                self.curr_pos = 0
+            else:
+                self.curr_pos = self.curr_pos + increment
 
 class RenderDicomSeries:
     def __init__(self, axes, dicom_lst, settings_path, previous_path=None):
@@ -598,6 +623,12 @@ class RenderDicomSeries:
             self._prev_image()
         elif event.key == "down":
             self._next_image()
+
+        # scroll up and down
+        elif event.key == "right":
+            self.ca_patches.advance_pos(True)
+        elif event.key == "left":
+            self.ca_patches.advance_pos(False)
 
         # page up and down
         elif event.key == "pageup":
