@@ -607,8 +607,10 @@ class RenderDicomSeries:
             # update movement data
             self.last_x, self.last_y = event.x, event.y
 
-        # only do if we don't have a lasso
-        elif not self.curr_lasso.active:
+            return
+
+        # update XY coords if we are not currently making annotation
+        if not event.button == 1:
             # get x y data
             if event.xdata:
                 curr_x = event.xdata
@@ -623,9 +625,6 @@ class RenderDicomSeries:
 
             # update print
             self._print_console_msg()
-
-        else:
-            return
 
     def _on_release(self, event):
         """
