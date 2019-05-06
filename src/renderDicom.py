@@ -106,18 +106,16 @@ class CaPatchContainer:
         if not len(self.ca_patch_lst):
             return INITIAL_CA_PATCH_USR_MSG
 
-        # determine how many lines to do
+        # case when we have 5 or more
         elif len(self.ca_patch_lst) >= MAX_NUM_CA_PATCH_LINES:
-            # get number before and after
-            num_before = int(np.floor(MAX_NUM_CA_PATCH_LINES/2))
-            num_after = int(np.ceil(MAX_NUM_CA_PATCH_LINES/2))
+            num_after = MAX_NUM_CA_PATCH_LINES
+
+        # case when we have less than 5
         else:
-            # get number before and after
-            num_before = int(np.floor((len(self.ca_patch_lst) - 1)/2))
-            num_after = int(np.ceil((len(self.ca_patch_lst) - 1)/2))
+            num_after = MAX_NUM_CA_PATCH_LINES - len(self.ca_patch_lst)
 
         # make slice
-        slc_rng = range(self.curr_pos - num_before, self.curr_pos + num_after + 1)
+        slc_rng = range(self.curr_pos, self.curr_pos + num_after)
 
         # iterate over slices
         rslt_msg_lst = []
@@ -591,6 +589,7 @@ class RenderDicomSeries:
             EFFECT:
                 scroll up/down slides
         """
+
         # determine if scrolling
         if self.scrolling:
             # determine current x and y events
