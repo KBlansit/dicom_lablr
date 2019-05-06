@@ -117,6 +117,7 @@ class CaPatchContainer:
         # make slice
         slc_rng = range(self.curr_pos, self.curr_pos + num_after)
 
+        #import pdb; pdb.set_trace()
         # iterate over slices
         rslt_msg_lst = []
         for i in slc_rng:
