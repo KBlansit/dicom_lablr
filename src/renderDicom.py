@@ -112,11 +112,12 @@ class CaPatchContainer:
 
         # case when we have less than 5
         else:
-            num_after = MAX_NUM_CA_PATCH_LINES - len(self.ca_patch_lst)
+            num_after = len(self.ca_patch_lst)
 
         # make slice
         slc_rng = range(self.curr_pos, self.curr_pos + num_after)
 
+        #import pdb; pdb.set_trace()
         # iterate over slices
         rslt_msg_lst = []
         for i in slc_rng:
