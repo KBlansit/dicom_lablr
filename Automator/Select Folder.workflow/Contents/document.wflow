@@ -67,7 +67,7 @@
 				<key>ActionParameters</key>
 				<dict>
 					<key>defaultLocation</key>
-					<string>~/Documents/Programming/ca_lablr/data</string>
+					<string>~/Documents/Programming/ca_lablr/ca_lablr/data</string>
 					<key>granularity</key>
 					<integer>1</integer>
 					<key>multipleSelection</key>
@@ -164,12 +164,10 @@
 						<string>3</string>
 					</dict>
 				</dict>
-				<key>conversionLabel</key>
-				<integer>0</integer>
 				<key>isViewVisible</key>
 				<true/>
 				<key>location</key>
-				<string>549.000000:337.000000</string>
+				<string>480.500000:337.000000</string>
 				<key>nibPath</key>
 				<string>/System/Library/Automator/Ask for Finder Items.action/Contents/Resources/Base.lproj/main.nib</string>
 			</dict>
@@ -217,7 +215,7 @@
 				<key>ActionParameters</key>
 				<dict>
 					<key>source</key>
-					<string>on run {input, parameters}		# set mac path to unix path	set new_input to (POSIX path of input)		# open terminal and execute script	tell application "Terminal"		do script "/Users/kevinblansit/Documents/Programming/ca_lablr/run_mac.sh " &amp; new_input	end tell		return inputend run</string>
+					<string>on run {input, parameters}		# set mac path to unix path	set new_input to (POSIX path of input)		# open terminal and execute script	tell application "Terminal"		do script "/Users/kevinblansit/Documents/Programming/ca_lablr/ca_lablr/run_mac.sh " &amp; new_input	end tell		return inputend run</string>
 				</dict>
 				<key>BundleIdentifier</key>
 				<string>com.apple.Automator.RunScript</string>
@@ -275,7 +273,7 @@ end run</string>
 				<key>isViewVisible</key>
 				<true/>
 				<key>location</key>
-				<string>549.000000:582.000000</string>
+				<string>480.500000:582.000000</string>
 				<key>nibPath</key>
 				<string>/System/Library/Automator/Run AppleScript.action/Contents/Resources/Base.lproj/main.nib</string>
 			</dict>
@@ -285,7 +283,7 @@ end run</string>
 	</array>
 	<key>connectors</key>
 	<dict>
-		<key>E6BE59D7-5071-4806-A067-F55E34821D66</key>
+		<key>F7E1DBF9-FC74-4A53-A3C0-F3D6AE0BCD95</key>
 		<dict>
 			<key>from</key>
 			<string>45812233-5A46-4D5F-B5F8-C2FEDFBA50E3 - 45812233-5A46-4D5F-B5F8-C2FEDFBA50E3</string>
