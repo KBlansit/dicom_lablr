@@ -65,6 +65,8 @@ MAX_NUM_CA_PATCH_LINES = 5
 
 FONT_SIZE = 10
 
+ALPHA_LEVEL = 0.1
+
 # main class
 class CaPatchContainer:
     def __init__(self):
@@ -215,10 +217,14 @@ class RenderDicomSeries:
         self.ca_patches = CaPatchContainer()
 
         # render to image
-        self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
+        self.dcm_im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
+
+        # make mask
+        dcm_size = self.dicom_lst[self.curr_idx].pixel_array.shape
+        self.msk_im = self.ax.imshow(np.zeros(dcm_size).astype('int'), "gnuplot", vmin=0, vmax=1, alpha = ALPHA_LEVEL)
 
         # remember default contrast
-        self.default_contrast_window = self.im.get_clim()
+        self.default_contrast_window = self.dcm_im.get_clim()
 
         # load data if previous_path specified
         if previous_path is not None:
@@ -366,7 +372,7 @@ class RenderDicomSeries:
         self.curr_idx = new_idx
 
         # render dicom image
-        self.im.set_data(self.dicom_lst[self.curr_idx].pixel_array)
+        self.dcm_im.set_data(self.dicom_lst[self.curr_idx].pixel_array)
 
         # get x and y limits
         self.x_max = self.ax.get_xlim()[1]
@@ -374,24 +380,9 @@ class RenderDicomSeries:
 
         # determine if we need to show calcium
         if self.showing_calcium:
-            # get mask layer
+            # set mask layer
             mask_layer = self.ca_patches.get_ca_mask(self.curr_idx)
-            mask_layer = mask_layer.astype('int')
-            mask_layer = np.zeros((512, 512))
-            #mask_layer[34:125, 128: 511] = 1
-
-            """
-            self.overlay_msk = self.ax.imshow(
-                mask_layer,
-                #np.zeros(self.dicom_lst[0].pixel_array.shape),
-                cmap='RdPu',
-                alpha = 0.3,
-            )
-
-
-            # set mask
-            self.overlay_msk.set_data(mask_layer)
-            """
+            self.msk_im.set_data(mask_layer)
 
             # iterate over patches to potentially render
             for curr_patch in self.ca_patches.ca_patch_lst:
@@ -410,12 +401,9 @@ class RenderDicomSeries:
             for curr_patch in self.ca_patches.ca_patch_lst:
                 curr_patch.set_visible(False)
 
-            # set mask
-            """
-            self.overlay_msk.set_data(
-                np.zeros(self.dicom_lst[0].pixel_array.shape),
-            )
-            """
+            # determine what to set mask
+            mask_layer = np.zeros((512, 512)).astype('int')
+            self.msk_im.set_data(mask_layer)
 
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
@@ -696,8 +684,8 @@ class RenderDicomSeries:
                 self._next_image()
 
         # resets contrast window
-        elif event.key == "v":
-            self.im.set_clim(self.default_contrast_window)
+        elif event.key == "shift":
+            self.dcm_im.set_clim(self.default_contrast_window)
             self.ax.figure.canvas.draw()
 
         # return results
@@ -995,11 +983,11 @@ class RenderDicomSeries:
                 delta = -500
 
         # get current contrast
-        curr_clim = self.im.get_clim()
+        curr_clim = self.dcm_im.get_clim()
 
         half_delta = delta/2.
 
-        self.im.set_clim(curr_clim[0] - half_delta, curr_clim[1] + half_delta)
+        self.dcm_im.set_clim(curr_clim[0] - half_delta, curr_clim[1] + half_delta)
 
         # draw image
         self.ax.figure.canvas.draw()
@@ -1017,11 +1005,11 @@ class RenderDicomSeries:
                 delta = -500
 
         # get current contrast
-        curr_clim = self.im.get_clim()
+        curr_clim = self.dcm_im.get_clim()
 
         half_delta = delta/2
 
-        self.im.set_clim(curr_clim[0] + half_delta, curr_clim[1] + half_delta)
+        self.dcm_im.set_clim(curr_clim[0] + half_delta, curr_clim[1] + half_delta)
 
         # draw image
         self.ax.figure.canvas.draw()
@@ -1059,9 +1047,6 @@ def plotDicom(dicom_lst, settings_path, previous_directory=None):
 
     txt_ax = fig.add_subplot(gs[0:20, 0:4])
     txt_ax.axis('off')
-
-    # add cursor to fig axis
-    cursor = Cursor(fig_ax, useblit=True, color='red', linewidth=0.5)
 
     # connect to function
     if previous_directory is None:

@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3
 
-
+import matplotlib
+matplotlib.use('Qt5Agg')
 
 # import libraries
 import os

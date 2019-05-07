@@ -22,6 +22,8 @@ CONNECTED_COMPONENTS_SHAPE = np.ones([3, 3, 3])
 
 MICRO_CA_THRESH = 2
 
+LINE_WIDTH = 0.5
+
 class CalciumPatch(object):
     def __init__(self, curr_label, lbl_mtx, msk_mtx, min_ary, px_area, \
                  slice_thickness, roi_name, shape):
@@ -50,7 +52,8 @@ class CalciumPatch(object):
 
         width = self.max_indx[1] - self.min_indx[1]
         height = self.max_indx[0] - self.min_indx[0]
-        self.rect = Rectangle(xy_loc, -width, -height, 1, edgecolor="red", fill = None)
+        self.rect = Rectangle(xy_loc, -width, -height, 1, edgecolor="red",
+                              fill = None, linewidth = LINE_WIDTH)
         self.rect.PLOTTED = False
 
         # set up to make measurements
