@@ -8,7 +8,11 @@ import bisect
 import shutil
 
 import pandas as pd
-import pydicom as dicom
+
+try:
+    import dicom
+except:
+    import pydicom as dicom
 
 REGEX_PARSE = re.compile("([aA-zZ]+)")
 
