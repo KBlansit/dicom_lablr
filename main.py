@@ -1,7 +1,7 @@
 #!/usr/local/bin/python3
 
 import matplotlib
-matplotlib.use('Qt5Agg')
+matplotlib.use('TkAgg')
 
 # import libraries
 import os
