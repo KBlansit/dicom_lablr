@@ -33,7 +33,7 @@ def main():
     # check command line args
     if cmd_args.settings_path is None:
         raise AssertionError("No settings path specified")
-    elif not os.path.exists(cmd_args.path):
+    elif not os.path.exists(cmd_args.settings_path):
         raise AssertionError("Cannot locate settings: " + cmd_args.path)
 
     # either requires path and user or meta data
