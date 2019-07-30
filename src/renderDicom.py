@@ -53,6 +53,7 @@ mpl.rcParams['keymap.all_axes'] = ''
 mpl.rcParams['figure.figsize'] = (7.5, 7.5)
 
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
+DIGIT_PARSE = re.compile("([0-9])+")
 
 # main class
 class RenderDicomSeries:
@@ -68,13 +69,16 @@ class RenderDicomSeries:
         # set roi_landmarks
         if "roi_landmarks" in settings:
             # filter roi landmarks
-            roi_lst = []
+            self.roi_lst = []
             point_lst = []
             for lndmrk in self.locations_markers.values():
                 if REGEX_PARSE.search(lndmrk).group() in settings["roi_landmarks"]:
-                    roi_lst.append(lndmrk)
+                    self.roi_lst.append(lndmrk)
                 else:
                     point_lst.append(lndmrk)
+
+            # for roi_lst, add 10 ROIs
+            self.roi_lst = [[x + " - "  + str(y) for y in range(10)] for x in self.roi_lst]
 
             self.roi_colors = dict(zip(settings["roi_landmarks"], COLOR_MAP))
 
@@ -87,6 +91,7 @@ class RenderDicomSeries:
 
         # initialize current selections
         self.curr_selection = None
+        self.curr_roi = None
         self.curr_idx = 0
         self.scrolling = False
 
@@ -128,19 +133,19 @@ class RenderDicomSeries:
             # initialize data dict
             self.data_dict = {
                 # all
-                "slice_location": dict(zip(point_lst+roi_lst, [None for x in point_lst+roi_lst])),
+                "slice_location": dict(zip(point_lst+self.roi_lst, [None for x in point_lst+self.roi_lst])),
                 # point
                 "point_locations": dict(zip(point_lst, [None for x in point_lst])),
                 # roi
-                "vert_data": dict(zip(roi_lst, [None for x in roi_lst])),
-                "roi_bounds": dict(zip(roi_lst, [None for x in roi_lst])),
+                "vert_data": dict(zip(self.roi_lst, [None for x in self.roi_lst])),
+                "roi_bounds": dict(zip(self.roi_lst, [None for x in self.roi_lst])),
                 "ca_score": dict(zip(settings["roi_landmarks"], [None for x in settings["roi_landmarks"]])),
                 "ca_vol": dict(zip(settings["roi_landmarks"], [None for x in settings["roi_landmarks"]])),
             }
 
             # initialize old circle data
             self.circle_data = dict(zip(point_lst, [None for x in point_lst]))
-            self.roi_data = dict(zip(roi_lst, [None for x in roi_lst]))
+            self.roi_data = dict(zip(self.roi_lst, [None for x in self.roi_lst]))
 
         # finish initialiazation
         self._update_image(self.curr_idx)
@@ -399,15 +404,25 @@ class RenderDicomSeries:
             # set to selection
             self.curr_selection = self.locations_markers[event.key]
 
-            # change lasso slector policy
-            if self.curr_selection in self.roi_data.keys():
-                self.curr_lasso.active = True
+            # assign curr_roi
+            if self.curr_selection in self.roi_lst:
+                self.curr_roi = self.locations_markers[event.key]
             else:
-                self.curr_lasso.active = False
+                self.curr_roi = None
+
+            # set curr lasso to off
+            self.curr_lasso.active = False
+
+        # change lasso slector policy
+        elif DIGIT_PARSE.search(event.key) and self.curr_roi:
+            self.curr_lasso.active = True
+            self.curr_selection = self.curr_selection + event.key
 
         # escape functions
         elif event.key == "escape":
             self.curr_selection = None
+            self.curr_roi = None
+            self.curr_lasso.active = False
 
         # removes current selection
         elif event.key == "delete":
