@@ -1,4 +1,7 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python3
+
+import matplotlib
+matplotlib.use('TkAgg')
 
 # import libraries
 import os
