@@ -70,20 +70,23 @@ class RenderDicomSeries:
         if "roi_landmarks" in settings:
             # filter roi landmarks
             self.roi_lst = []
-            point_lst = []
+            self.point_lst = []
             for lndmrk in self.locations_markers.values():
                 if REGEX_PARSE.search(lndmrk).group() in settings["roi_landmarks"]:
                     self.roi_lst.append(lndmrk)
                 else:
-                    point_lst.append(lndmrk)
+                    self.point_lst.append(lndmrk)
 
             # for roi_lst, add 10 ROIs
             self.roi_lst = [[x + " - "  + str(y) for y in range(10)] for x in self.roi_lst]
+            self.roi_lst = [x for y in self.roi_lst for x in y]
 
             self.roi_colors = dict(zip(settings["roi_landmarks"], COLOR_MAP))
+        else:
+            self.roi_lst
 
         # initialize valid location types list
-        self.valid_location_types = [v for k,v in self.locations_markers.items()]
+        self.valid_location_types = self.point_lst + self.roi_lst
 
         # store imputs
         self.ax = ax
@@ -133,9 +136,9 @@ class RenderDicomSeries:
             # initialize data dict
             self.data_dict = {
                 # all
-                "slice_location": dict(zip(point_lst+self.roi_lst, [None for x in point_lst+self.roi_lst])),
+                "slice_location": dict(zip(self.point_lst+self.roi_lst, [None for x in self.point_lst+self.roi_lst])),
                 # point
-                "point_locations": dict(zip(point_lst, [None for x in point_lst])),
+                "point_locations": dict(zip(self.point_lst, [None for x in self.point_lst])),
                 # roi
                 "vert_data": dict(zip(self.roi_lst, [None for x in self.roi_lst])),
                 "roi_bounds": dict(zip(self.roi_lst, [None for x in self.roi_lst])),
@@ -144,7 +147,7 @@ class RenderDicomSeries:
             }
 
             # initialize old circle data
-            self.circle_data = dict(zip(point_lst, [None for x in point_lst]))
+            self.circle_data = dict(zip(self.point_lst, [None for x in self.point_lst]))
             self.roi_data = dict(zip(self.roi_lst, [None for x in self.roi_lst]))
 
         # finish initialiazation
