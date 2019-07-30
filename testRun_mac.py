@@ -1,21 +1,23 @@
-#!/usr/bin/env python
+#!/usr/bin/python3
 
 # import libraries
 import os
 
 # define parts of program call
 base_call = 'main.py'
-path_call = '-p data/99752834'
-settings_call = '-s settings/ex_settings.yaml'
-user_call = '-u KevinTst'
+path_call = '-p data/Beehikkot/Beehikkot_2_Calcium_score'
+settings_call = '-s settings/ca_settings.yaml'
+output_call = '-v data/test_output'
 
 # make into a list
 cmd_lst = [
     base_call,
     path_call,
     settings_call,
-    user_call,
+    output_call,
 ]
 
+command = "python3 -W ignore " + " ".join(cmd_lst)
+
 # source and run file
-os.system("python " + " ".join(cmd_lst))
+os.system(command)

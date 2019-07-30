@@ -11,20 +11,21 @@ import pandas as pd
 import deepdish as dd
 import matplotlib as mpl
 
-from matplotlib import pyplot, cm, path, patches
-from matplotlib.patches import Circle
-from matplotlib.widgets import Cursor, LassoSelector, RectangleSelector
+from matplotlib import pyplot, cm, path
+from matplotlib.patches import Circle, PathPatch
+from matplotlib.widgets import Cursor, LassoSelector
 
 # import user fefined libraries
 from src.utility import import_anatomic_settings, REGEX_PARSE
-from src.process_calcium import get_calcium_measurements
+from src.process_calcium import get_calcium_measurements, get_calcifications
 from src.process_roi import get_roi_indicies
 
 # global messages
-INITIAL_USR_MSG = "Please select a anatomic landmark"
+INITIAL_ANNOTATION_USR_MSG = "Please select a anatomic landmark."
+INITIAL_CA_PATCH_USR_MSG = "No detected calcium patches."
 CONTRAST_SCALE = 5
 
-DEFAULT_Z_AROUND_CENTER = 2
+DEFAULT_Z_AROUND_CENTER = 1
 
 COLOR_MAP = [
     "blue",
@@ -52,12 +53,131 @@ mpl.rcParams['keymap.all_axes'] = ''
 
 mpl.rcParams['figure.figsize'] = (7.5, 7.5)
 
+pyplot.style.use('dark_background')
+
 KEY_PARSE = re.compile("([A-Z]+)([0-9]+)")
 DIGIT_PARSE = re.compile("([0-9])+")
 
+# on scale from 0 to 1?
+ANNOTATION_INFO_TEXT_LOC = (0.15, 0.05)
+CALCIUM_INFO_TEXT_LOC = (0.15, 0.95)
+
+MAX_NUM_CA_PATCH_LINES = 5
+
+FONT_SIZE = 10
+
+ALPHA_LEVEL = 0.1
+
 # main class
+class CaPatchContainer:
+    def __init__(self):
+        self.ca_patch_lst = []
+
+        self.curr_pos = None
+
+    def add_patch(self, ca_patch_obj):
+        """
+        adds patches to list
+        """
+
+        # if we don't have any previous patches, then we initialize curr pos
+        if not len(self.ca_patch_lst):
+            self.curr_pos = 0
+
+        # add patch
+        self.ca_patch_lst.append(ca_patch_obj)
+
+    def remove_patches(self, roi_name):
+        """
+        removes patches accoridng to roi_name
+        """
+        # only return items in list that do not have roi name
+        self.ca_patch_lst = [x for x in self.ca_patch_lst if x.roi_name != roi_name]
+
+        # if we don't have any more previous patches, then we set pos to None
+        if not len(self.ca_patch_lst):
+            self.curr_pos = None
+        elif self.curr_pos >= len(self.ca_patch_lst):
+            self.curr_pos = len(self.ca_patch_lst) - 1
+
+    def get_print_statement(self):
+        """
+        construct print statement
+        """
+
+        # without any, return default message
+        if not len(self.ca_patch_lst):
+            return INITIAL_CA_PATCH_USR_MSG
+
+        # case when we have 5 or more
+        elif len(self.ca_patch_lst) >= MAX_NUM_CA_PATCH_LINES:
+            num_after = MAX_NUM_CA_PATCH_LINES
+
+        # case when we have less than 5
+        else:
+            num_after = len(self.ca_patch_lst)
+
+        # make slice
+        slc_rng = range(self.curr_pos, self.curr_pos + num_after)
+
+        #import pdb; pdb.set_trace()
+        # iterate over slices
+        rslt_msg_lst = []
+        for i in slc_rng:
+
+            # reindex if necessary
+            if i >= len(self.ca_patch_lst):
+                i = abs(len(self.ca_patch_lst) - i)
+
+            # get base message
+            curr_msg = self.ca_patch_lst[i].construct_message()
+
+            # determine prefix to use
+            if self.curr_pos == i:
+                prefix = "> "
+            else:
+                prefix = "- "
+
+            # append
+            rslt_msg_lst.append(prefix + curr_msg)
+
+        # combine messages
+        return "\n\n".join(rslt_msg_lst)
+
+    def get_rectangles(self):
+        # get rectangle for each patch
+        return [x.get_rectangle() for x in self.ca_patch_lst]
+
+    def advance_pos(self, forward = True):
+        """
+        advance either forward or backwards depending on forward (True => Forward)
+        """
+        # determine if pos is set
+        if self.curr_pos != None:
+
+            # determine increment
+            if forward:
+                increment = 1
+            else:
+                increment = - 1
+
+            # determine if we can increment
+            if self.curr_pos + increment == -1:
+                self.curr_pos = len(self.ca_patch_lst) - 1
+            elif self.curr_pos + increment >= len(self.ca_patch_lst):
+                self.curr_pos = 0
+            else:
+                self.curr_pos = self.curr_pos + increment
+
+    def get_ca_mask(self, curr_slice):
+        """
+        gets the calcium mask from the current pos selected for the curr_slice
+        """
+
+        return self.ca_patch_lst[self.curr_pos].get_ca_mask(curr_slice)
+
 class RenderDicomSeries:
-    def __init__(self, ax, dicom_lst, settings_path, previous_path=None):
+    def __init__(self, axes, dicom_lst, settings_path, previous_path=None):
         # import settings
         settings = import_anatomic_settings(settings_path)
 
@@ -89,7 +209,9 @@ class RenderDicomSeries:
         self.valid_location_types = self.point_lst + self.roi_lst
 
         # store imputs
-        self.ax = ax
+        self.ax = axes[0]
+        self.txt_ax = axes[1]
+
         self.dicom_lst = dicom_lst
 
         # initialize current selections
@@ -98,11 +220,19 @@ class RenderDicomSeries:
         self.curr_idx = 0
         self.scrolling = False
 
+        # calciums
+        self.showing_calcium = False
+        self.ca_patches = CaPatchContainer()
+
         # render to image
-        self.im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
+        self.dcm_im = self.ax.imshow(self.dicom_lst[self.curr_idx].pixel_array, cmap='gray')
+
+        # make mask
+        dcm_size = self.dicom_lst[self.curr_idx].pixel_array.shape
+        self.msk_im = self.ax.imshow(np.zeros(dcm_size).astype('int'), "gnuplot", vmin=0, vmax=1, alpha = ALPHA_LEVEL)
 
         # remember default contrast
-        self.default_contrast_window = self.im.get_clim()
+        self.default_contrast_window = self.dcm_im.get_clim()
 
         # load data if previous_path specified
         if previous_path is not None:
@@ -121,16 +251,29 @@ class RenderDicomSeries:
                 else:
                     self.circle_data[lndmrk] = None
 
+            # initialize ROIs
             for curr_roi, ver_path in self.data_dict["vert_data"].items():
                 if ver_path:
+
+                    # determine types
                     curr_class = REGEX_PARSE.search(curr_roi).group()
                     curr_color = self.roi_colors[curr_class]
-                    patch = patches.PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
+
+                    # set lasso patch
+                    patch = PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
                     self.roi_data[curr_roi] = patch
                     patch.set_visible(False)
                     self.ax.add_patch(patch)
+
+                    # initialize ca patches
+                    self.curr_selection = curr_roi
+                    self._update_attenuation()
+
                 else:
                     self.roi_data[curr_roi] = None
+
+                # reset curr selection
+                self.curr_selection = None
 
         else:
             # initialize data dict
@@ -150,16 +293,41 @@ class RenderDicomSeries:
             self.circle_data = dict(zip(self.point_lst, [None for x in self.point_lst]))
             self.roi_data = dict(zip(self.roi_lst, [None for x in self.roi_lst]))
 
-        # finish initialiazation
-        self._update_image(self.curr_idx)
+        # write initial message for annotation info box
+        self.annotation_text_msg = self.txt_ax.annotate(
+            INITIAL_ANNOTATION_USR_MSG + "\nCurent Location - X: 0 Y: 0 Slide: 0\n",
+            ANNOTATION_INFO_TEXT_LOC,
+            horizontalalignment = "left",
+            verticalalignment = "top",
+            fontsize = FONT_SIZE,
+            bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
+        )
 
-        # determine
-        sys.stdout.write("Slide 0; " + INITIAL_USR_MSG)
-        sys.stdout.flush()
+        # construct calcium message
+        if not len(self.ca_patches.ca_patch_lst):
+            ca_usr_msg = INITIAL_CA_PATCH_USR_MSG
+        else:
+            ca_usr_msg = self.ca_patches.get_print_statement()
+
+        # write initial message for micro calcium box
+        self.ca_patch_text_msg = self.txt_ax.annotate(
+            ca_usr_msg, CALCIUM_INFO_TEXT_LOC,
+            horizontalalignment = "left",
+            verticalalignment = "top",
+            fontsize = FONT_SIZE,
+            bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
+        )
+
+        # set curr xy
+        self.curr_xy = (0, 0)
 
         # initialize lasso selector
         self.curr_lasso = LassoSelector(self.ax, self._lasso, button=1)
         self.curr_lasso.active = False
+
+        # finish initialiazation
+        self._update_image(self.curr_idx)
+        self.txt_ax.figure.canvas.draw()
 
     def connect(self):
         """
@@ -212,25 +380,68 @@ class RenderDicomSeries:
         self.curr_idx = new_idx
 
         # render dicom image
-        self.im.set_data(self.dicom_lst[self.curr_idx].pixel_array)
+        self.dcm_im.set_data(self.dicom_lst[self.curr_idx].pixel_array)
 
         # get x and y limits
         self.x_max = self.ax.get_xlim()[1]
         self.y_max = self.ax.get_ylim()[0]
 
+        # determine if we need to show calcium
+        if self.showing_calcium:
+            # set mask layer
+            mask_layer = self.ca_patches.get_ca_mask(self.curr_idx)
+            self.msk_im.set_data(mask_layer)
+
+            # iterate over patches to potentially render
+            for curr_patch in self.ca_patches.ca_patch_lst:
+                # get min and max slice of calcium
+                min_slice, max_slice = curr_patch.get_slice_range()
+
+                # determine if we're on right slice
+                if min_slice <= self.curr_idx <= max_slice:
+                    curr_patch.set_visible(True)
+                else:
+                    curr_patch.set_visible(False)
+
+        # don't show
+        else:
+            # set rects to invisible
+            for curr_patch in self.ca_patches.ca_patch_lst:
+                curr_patch.set_visible(False)
+
+            # determine what to set mask
+            mask_layer = np.zeros((512, 512)).astype('int')
+            self.msk_im.set_data(mask_layer)
+
         # iterate through anatomies to determine if we redraw
         for x in self.valid_location_types:
-            if self.data_dict["slice_location"][x] == new_idx:
+            # determine if we need to show calcium
+            if self.showing_calcium:
+                if x in self.roi_data.keys():
+                    if self.roi_data[x] is not None:
+                        self.roi_data[x].set_visible(False)
+                else:
+                    if self.circle_data[x] is not None:
+                        self.circle_data[x].set_visible(False)
+
+            # determine if we show point localizations
+            elif self.data_dict["slice_location"][x] == new_idx:
                 if x in self.roi_data.keys():
                     if self.roi_data[x] is not None:
                         self.roi_data[x].set_visible(True)
                 else:
                     if self.circle_data[x] is not None:
                         self.circle_data[x].set_visible(True)
+
+            # print ROIs
             elif self._eval_roi_bounds(x) and self.roi_data[x] is not None:
                 self.roi_data[x].set_visible(True)
+
+            # need to capture this or else we fall through
             elif self.data_dict["slice_location"][x] == None:
                 pass
+
+            # set other ROIs to non visible
             elif x in self.roi_data.keys():
                 if self.roi_data[x] is not None:
                     self.roi_data[x].set_visible(False)
@@ -246,6 +457,9 @@ class RenderDicomSeries:
         EFFECT:
             updates attenuation measurements
         """
+        # turn off calcium
+        self.showing_calcium = False
+
         # do only if we are currently on a valid data type
         if self.curr_selection in self.roi_data.keys():
             # get curr roi type
@@ -283,12 +497,29 @@ class RenderDicomSeries:
             # get unique coords
             roi_indx_lst = list(set(roi_indx_lst))
 
-            # do if we have indicies
-            # get calcium score
+            # remove old patches
+            self.ca_patches.remove_patches(curr_roi)
+
             if len(roi_indx_lst):
+                # get calcium score for info
                 scores = get_calcium_measurements(roi_indx_lst, self.dicom_lst)
                 ca_score = scores[0]
                 ca_vol = scores[1]
+
+                # get calcium patches
+                temp_ca_lst = get_calcifications(roi_indx_lst, self.dicom_lst, curr_roi)
+
+                # add to patch lst
+                for curr_patch in temp_ca_lst:
+                    # add patch to list
+                    self.ca_patches.add_patch(curr_patch)
+
+                    # add to ax
+                    self.ax.add_patch(curr_patch.get_rectangle())
+
+                    # set invisible
+                    curr_patch.set_visible(False)
+
             else:
                 ca_score = None
                 ca_vol = None
@@ -355,6 +586,7 @@ class RenderDicomSeries:
             EFFECT:
                 scroll up/down slides
         """
+
         # determine if scrolling
         if self.scrolling:
             # determine current x and y events
@@ -371,8 +603,24 @@ class RenderDicomSeries:
             # update movement data
             self.last_x, self.last_y = event.x, event.y
 
-        else:
             return
+
+        # update XY coords if we are not currently making annotation
+        if not event.button == 1:
+            # get x y data
+            if event.xdata:
+                curr_x = event.xdata
+            else:
+                curr_x = self.curr_xy[0]
+            if event.ydata:
+                curr_y = event.ydata
+            else:
+                curr_y = self.curr_xy[1]
+
+            self.curr_xy = curr_x, curr_y
+
+            # update print
+            self._print_console_msg()
 
     def _on_release(self, event):
         """
@@ -439,6 +687,12 @@ class RenderDicomSeries:
         elif event.key == "down":
             self._next_image()
 
+        # select next/previous calcium
+        elif event.key == "right":
+            self.ca_patches.advance_pos(True)
+        elif event.key == "left":
+            self.ca_patches.advance_pos(False)
+
         # page up and down
         elif event.key == "pageup":
             for _ in range(10):
@@ -448,8 +702,8 @@ class RenderDicomSeries:
                 self._next_image()
 
         # resets contrast window
-        elif event.key == "v":
-            self.im.set_clim(self.default_contrast_window)
+        elif event.key == "shift":
+            self.dcm_im.set_clim(self.default_contrast_window)
             self.ax.figure.canvas.draw()
 
         # return results
@@ -475,12 +729,26 @@ class RenderDicomSeries:
         elif event.key == "[":
             self._change_z_bounds(-1)
 
+        # flip showing calcium flag
+        elif event.key == " ":
+            self.showing_calcium = not self.showing_calcium
+
+        elif event.key == "shift":
+            self.ca_patches.get_ca_mask(self.curr_idx)
+
         # else quit
         else:
             return
 
         # print console msg
-        self._print_console_msg()
+        if event.key == "return" or event.key == "enter":
+            pass
+        else:
+            # update image
+            self._update_image(self.curr_idx)
+
+            # update print
+            self._print_console_msg()
 
     def _lasso(self, verts):
         """
@@ -499,7 +767,7 @@ class RenderDicomSeries:
             # save patch
             curr_class = REGEX_PARSE.search(self.curr_selection).group()
             curr_color = self.roi_colors[curr_class]
-            patch = patches.PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
+            patch = PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
             self.roi_data[self.curr_selection] = patch
             self.ax.add_patch(patch)
 
@@ -507,11 +775,11 @@ class RenderDicomSeries:
             self.data_dict["slice_location"][self.curr_selection] = self.curr_idx
             self.data_dict["roi_bounds"][self.curr_selection] = DEFAULT_Z_AROUND_CENTER
 
-            # update image
-            self._update_image(self.curr_idx)
-
             # update measurements
             self._update_attenuation()
+
+            # update image
+            self._update_image(self.curr_idx)
 
     def _change_z_bounds(self, direction):
         """
@@ -577,7 +845,7 @@ class RenderDicomSeries:
         """
         # determine if there's a slice chosen
         if self.curr_selection is None:
-            usr_msg = INITIAL_USR_MSG
+            annotation_usr_msg = INITIAL_ANNOTATION_USR_MSG + "\n"
         else:
             # determine if slice has already been set
             if self.curr_selection in self.roi_data:
@@ -615,14 +883,49 @@ class RenderDicomSeries:
                 else:
                     slice_loc_str = ""
 
-            usr_msg = "Current selection: {}{}".format(self.curr_selection, slice_loc_str)
+            annotation_usr_msg = "Current selection: {}{}\n".format(self.curr_selection, slice_loc_str)
 
         # concatenate messges
-        usr_msg = "\rSlide {}; {}".format(str(self.curr_idx), usr_msg)
+        if self.curr_xy:
+            annotation_usr_msg = annotation_usr_msg +\
+                "Curent Location - X: {} Y: {} Slide: {}\n".format(
+                    *[int(round(x)) for x in self.curr_xy],
+                    str(self.curr_idx),
+                )
+        elif not self.curr_xy:
+            annotation_usr_msg = annotation_usr_msg +\
+                "Curent location - X: {} Y: {} Slide: {}\n".format(
+                    *[0, 0],
+                    str(self.curr_idx),
+                )
 
-        # write message
-        sys.stdout.write(usr_msg.ljust(80))
-        sys.stdout.flush()
+        # construct calcium message
+        if not len(self.ca_patches.ca_patch_lst):
+            ca_usr_msg = INITIAL_CA_PATCH_USR_MSG
+        else:
+            ca_usr_msg = self.ca_patches.get_print_statement()
+
+        # write messages
+        self.annotation_text_msg.remove()
+        self.annotation_text_msg = self.txt_ax.annotate(
+            annotation_usr_msg, ANNOTATION_INFO_TEXT_LOC,
+            horizontalalignment = "left",
+            verticalalignment = "top",
+            fontsize = FONT_SIZE,
+            bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
+        )
+
+        self.ca_patch_text_msg.remove()
+        self.ca_patch_text_msg = self.txt_ax.annotate(
+            ca_usr_msg, CALCIUM_INFO_TEXT_LOC,
+            horizontalalignment = "left",
+            verticalalignment = "top",
+            fontsize = FONT_SIZE,
+            bbox={'facecolor':'red', 'alpha':0.8, 'pad':10}
+        )
+
+        # draw image
+        self.txt_ax.figure.canvas.draw()
 
     def _reset_location(self):
         """
@@ -698,11 +1001,11 @@ class RenderDicomSeries:
                 delta = -500
 
         # get current contrast
-        curr_clim = self.im.get_clim()
+        curr_clim = self.dcm_im.get_clim()
 
         half_delta = delta/2.
 
-        self.im.set_clim(curr_clim[0] - half_delta, curr_clim[1] + half_delta)
+        self.dcm_im.set_clim(curr_clim[0] - half_delta, curr_clim[1] + half_delta)
 
         # draw image
         self.ax.figure.canvas.draw()
@@ -720,11 +1023,11 @@ class RenderDicomSeries:
                 delta = -500
 
         # get current contrast
-        curr_clim = self.im.get_clim()
+        curr_clim = self.dcm_im.get_clim()
 
         half_delta = delta/2
 
-        self.im.set_clim(curr_clim[0] + half_delta, curr_clim[1] + half_delta)
+        self.dcm_im.set_clim(curr_clim[0] + half_delta, curr_clim[1] + half_delta)
 
         # draw image
         self.ax.figure.canvas.draw()
@@ -748,18 +1051,26 @@ def plotDicom(dicom_lst, settings_path, previous_directory=None):
     mpl.rcParams['toolbar'] = 'None'
 
     # make fig object
-    fig, (ax) = pyplot.subplots(1)
+    #fig, ax = pyplot.subplots(1)
+    fig = pyplot.figure(constrained_layout=True)
+    fig.subplots_adjust(hspace=0,wspace=0,left=0,right=1,top=1)
 
-    # make figure
-    ax.set_aspect('equal')
-    ax.axis('off')
-    cursor = Cursor(ax, useblit=True, color='red', linewidth=1)
+    # make grid space
+    gs = fig.add_gridspec(20, 20)
+
+    # figure ax
+    fig_ax = fig.add_subplot(gs[0:20, 4:20])
+    fig_ax.set_aspect('equal')
+    fig_ax.axis('off')
+
+    txt_ax = fig.add_subplot(gs[0:20, 0:4])
+    txt_ax.axis('off')
 
     # connect to function
     if previous_directory is None:
-        dicomRenderer = RenderDicomSeries(ax, dicom_lst, settings_path)
+        dicomRenderer = RenderDicomSeries((fig_ax, txt_ax), dicom_lst, settings_path)
     else:
-        dicomRenderer = RenderDicomSeries(ax, dicom_lst, settings_path, previous_directory)
+        dicomRenderer = RenderDicomSeries((fig_ax, txt_ax), dicom_lst, settings_path, previous_directory)
 
     dicomRenderer.connect()
     pyplot.show()
