@@ -40,8 +40,8 @@ def read_dicom(path):
         list object of dicom files
     """
     # regular expression search for .dcm file
-    if re.search(".dcm$", path) is not None:
-        return dicom.read_file(path, force=True)
+    #if re.search(".dcm$", path) is not None:
+    return dicom.read_file(path, force=True)
 
 def sort_dicom_list(dicom_list):
     """
