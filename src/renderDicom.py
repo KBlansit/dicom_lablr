@@ -11,6 +11,7 @@ import pandas as pd
 import deepdish as dd
 import matplotlib as mpl
 
+from itertools import product
 from matplotlib import pyplot, cm, path
 from matplotlib.patches import Circle, PathPatch
 from matplotlib.widgets import Cursor, LassoSelector
@@ -63,9 +64,8 @@ ANNOTATION_INFO_TEXT_LOC = (0.15, 0.05)
 CALCIUM_INFO_TEXT_LOC = (0.15, 0.95)
 
 MAX_NUM_CA_PATCH_LINES = 5
-
 FONT_SIZE = 10
-
+JUMP_SLICES = 20
 ALPHA_LEVEL = 0.1
 
 # main class
@@ -120,7 +120,6 @@ class CaPatchContainer:
         # make slice
         slc_rng = range(self.curr_pos, self.curr_pos + num_after)
 
-        #import pdb; pdb.set_trace()
         # iterate over slices
         rslt_msg_lst = []
         for i in slc_rng:
@@ -190,20 +189,22 @@ class RenderDicomSeries:
         if "roi_landmarks" in settings:
             # filter roi landmarks
             self.roi_lst = []
-            point_lst = []
+            self.point_lst = []
             for lndmrk in self.locations_markers.values():
                 if REGEX_PARSE.search(lndmrk).group() in settings["roi_landmarks"]:
                     self.roi_lst.append(lndmrk)
                 else:
-                    point_lst.append(lndmrk)
+                    self.point_lst.append(lndmrk)
 
             # for roi_lst, add 10 ROIs
-            self.roi_lst = [[x + " - "  + str(y) for y in range(10)] for x in self.roi_lst]
+            self.roi_lst = ["{} - {}".format(x,y) for x,y in product(*[self.roi_lst, range(10)])]
 
             self.roi_colors = dict(zip(settings["roi_landmarks"], COLOR_MAP))
+        else:
+            self.roi_lst
 
         # initialize valid location types list
-        self.valid_location_types = [v for k,v in self.locations_markers.items()]
+        self.valid_location_types = self.point_lst + self.roi_lst
 
         # store imputs
         self.ax = axes[0]
@@ -249,25 +250,25 @@ class RenderDicomSeries:
                     self.circle_data[lndmrk] = None
 
             # initialize ROIs
-            for curr_roi, ver_path in self.data_dict["vert_data"].items():
+            for tmp_roi, ver_path in self.data_dict["vert_data"].items():
                 if ver_path:
 
                     # determine types
-                    curr_class = REGEX_PARSE.search(curr_roi).group()
+                    curr_class = REGEX_PARSE.search(tmp_roi).group()
                     curr_color = self.roi_colors[curr_class]
 
                     # set lasso patch
                     patch = PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
-                    self.roi_data[curr_roi] = patch
+                    self.roi_data[self.curr_roi] = patch
                     patch.set_visible(False)
                     self.ax.add_patch(patch)
 
                     # initialize ca patches
-                    self.curr_selection = curr_roi
+                    self.curr_selection = tmp_roi
                     self._update_attenuation()
 
                 else:
-                    self.roi_data[curr_roi] = None
+                    self.roi_data[tmp_roi] = None
 
                 # reset curr selection
                 self.curr_selection = None
@@ -276,9 +277,9 @@ class RenderDicomSeries:
             # initialize data dict
             self.data_dict = {
                 # all
-                "slice_location": dict(zip(point_lst+self.roi_lst, [None for x in point_lst+self.roi_lst])),
+                "slice_location": dict(zip(self.point_lst+self.roi_lst, [None for x in self.point_lst+self.roi_lst])),
                 # point
-                "point_locations": dict(zip(point_lst, [None for x in point_lst])),
+                "point_locations": dict(zip(self.point_lst, [None for x in self.point_lst])),
                 # roi
                 "vert_data": dict(zip(self.roi_lst, [None for x in self.roi_lst])),
                 "roi_bounds": dict(zip(self.roi_lst, [None for x in self.roi_lst])),
@@ -287,7 +288,7 @@ class RenderDicomSeries:
             }
 
             # initialize old circle data
-            self.circle_data = dict(zip(point_lst, [None for x in point_lst]))
+            self.circle_data = dict(zip(self.point_lst, [None for x in self.point_lst]))
             self.roi_data = dict(zip(self.roi_lst, [None for x in self.roi_lst]))
 
         # write initial message for annotation info box
@@ -459,14 +460,12 @@ class RenderDicomSeries:
 
         # do only if we are currently on a valid data type
         if self.curr_selection in self.roi_data.keys():
-            # get curr roi type
-            curr_roi = REGEX_PARSE.search(self.curr_selection).group()
 
             # initialize roi indx lst
             roi_indx_lst = []
 
             # do for keys
-            for curr_k in [x for x in self.roi_data.keys() if x.startswith(curr_roi)]:
+            for curr_k in [x for x in self.roi_data.keys() if x.startswith(self.curr_roi)]:
                 # test if curr key has been used
                 if not self.data_dict["vert_data"][curr_k] is None:
 
@@ -495,7 +494,7 @@ class RenderDicomSeries:
             roi_indx_lst = list(set(roi_indx_lst))
 
             # remove old patches
-            self.ca_patches.remove_patches(curr_roi)
+            self.ca_patches.remove_patches(self.curr_roi)
 
             if len(roi_indx_lst):
                 # get calcium score for info
@@ -504,7 +503,7 @@ class RenderDicomSeries:
                 ca_vol = scores[1]
 
                 # get calcium patches
-                temp_ca_lst = get_calcifications(roi_indx_lst, self.dicom_lst, curr_roi)
+                temp_ca_lst = get_calcifications(roi_indx_lst, self.dicom_lst, self.curr_roi)
 
                 # add to patch lst
                 for curr_patch in temp_ca_lst:
@@ -522,8 +521,8 @@ class RenderDicomSeries:
                 ca_vol = None
 
             # save score
-            self.data_dict["ca_score"][curr_roi] = ca_score
-            self.data_dict["ca_vol"][curr_roi] = ca_vol
+            self.data_dict["ca_score"][self.curr_roi] = ca_score
+            self.data_dict["ca_vol"][self.curr_roi] = ca_vol
 
     def _on_click(self, event):
         """
@@ -547,6 +546,8 @@ class RenderDicomSeries:
         elif event.button == 1:
             # return if nothing is selected
             if self.curr_selection is None:
+                return
+            elif self.curr_selection in set([x.split()[0] for x in self.roi_lst]):
                 return
 
             # set default xy_circle_rad
@@ -653,7 +654,7 @@ class RenderDicomSeries:
             self.curr_selection = self.locations_markers[event.key]
 
             # assign curr_roi
-            if self.curr_selection in self.roi_lst:
+            if self.curr_selection in set([x.split()[0] for x in self.roi_lst]):
                 self.curr_roi = self.locations_markers[event.key]
             else:
                 self.curr_roi = None
@@ -664,7 +665,7 @@ class RenderDicomSeries:
         # change lasso slector policy
         elif DIGIT_PARSE.search(event.key) and self.curr_roi:
             self.curr_lasso.active = True
-            self.curr_selection = self.curr_selection + event.key
+            self.curr_selection = self.curr_roi + " - " + event.key
 
         # escape functions
         elif event.key == "escape":
@@ -692,10 +693,10 @@ class RenderDicomSeries:
 
         # page up and down
         elif event.key == "pageup":
-            for _ in range(10):
+            for _ in range(JUMP_SLICES):
                 self._prev_image()
         elif event.key == "pagedown":
-            for _ in range(10):
+            for _ in range(JUMP_SLICES):
                 self._next_image()
 
         # resets contrast window
@@ -861,24 +862,36 @@ class RenderDicomSeries:
                 else:
                     slice_loc_str = ""
 
-                # get curr roi type
-                curr_roi = REGEX_PARSE.search(self.curr_selection).group()
-
                 # test if roi has a measurement
-                if self.data_dict["ca_score"][curr_roi] and self.data_dict["ca_vol"][curr_roi]:
-                    curr_ca = str(round(self.data_dict["ca_score"][curr_roi]))
-                    curr_vol = str(round(self.data_dict["ca_vol"][curr_roi]))
+                if self.data_dict["ca_score"][self.curr_roi] and self.data_dict["ca_vol"][self.curr_roi]:
+                    curr_ca = str(round(self.data_dict["ca_score"][self.curr_roi]))
+                    curr_vol = str(round(self.data_dict["ca_vol"][self.curr_roi]))
                     ca_str = " [Ag: {}, Vol: {}]".format(curr_ca, curr_vol)
                 else:
                     ca_str = ""
 
                 slice_loc_str = "{}{}".format(slice_loc_str, ca_str)
 
+            # case where we don't have sub ROI for category
+            elif self.curr_selection in set([x.split()[0] for x in self.roi_lst]):
+                # test if roi has a measurement
+                if self.data_dict["ca_score"][self.curr_roi] and self.data_dict["ca_vol"][self.curr_roi]:
+                    curr_ca = str(round(self.data_dict["ca_score"][self.curr_roi]))
+                    curr_vol = str(round(self.data_dict["ca_vol"][self.curr_roi]))
+                    ca_str = " [Ag: {}, Vol: {}]".format(curr_ca, curr_vol)
+                else:
+                    ca_str = ""
+
+                slice_loc_str = ca_str
+
+
             elif self.curr_selection in self.circle_data:
                 if self.circle_data[self.curr_selection] is not None:
                     slice_loc_str = " [slice - {}]".format(str(self.data_dict["slice_location"][self.curr_selection]))
                 else:
                     slice_loc_str = ""
+            else:
+                raise AssertionError("Error processing print message for {}".format(self.curr_selection))
 
             annotation_usr_msg = "Current selection: {}{}\n".format(self.curr_selection, slice_loc_str)
 
