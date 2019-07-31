@@ -1,6 +1,10 @@
-/data
 *.pyc
-/tst_output
-/output
 .DS_Store
-settings/
+
+data
+tst_output
+dist
+build
+settings
+output
+.eggs
