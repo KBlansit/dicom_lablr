@@ -65,7 +65,7 @@ CALCIUM_INFO_TEXT_LOC = (0.15, 0.95)
 
 MAX_NUM_CA_PATCH_LINES = 5
 FONT_SIZE = 10
-JUMP_SLICES = 20
+JUMP_SLICES = 25
 ALPHA_LEVEL = 0.1
 
 # main class
@@ -693,11 +693,9 @@ class RenderDicomSeries:
 
         # page up and down
         elif event.key == "pageup":
-            for _ in range(JUMP_SLICES):
-                self._prev_image()
+            self._prev_image(JUMP_SLICES)
         elif event.key == "pagedown":
-            for _ in range(JUMP_SLICES):
-                self._next_image()
+            self._next_image(JUMP_SLICES)
 
         # resets contrast window
         elif event.key == "shift":
@@ -978,25 +976,29 @@ class RenderDicomSeries:
         # draw image
         self.ax.figure.canvas.draw()
 
-    def _next_image(self):
+    def _next_image(self, num_images = 1):
         """
         EFFECT:
             advance image
         """
         if self.curr_idx == len(self.dicom_lst) - 1:
             return
+        elif self.curr_idx + num_images > len(self.dicom_lst):
+            num_images = len(self.dicom_lst) - self.curr_idx - 1
 
-        self._update_image(self.curr_idx + 1)
+        self._update_image(self.curr_idx + num_images)
 
-    def _prev_image(self):
+    def _prev_image(self, num_images = 1):
         """
         EFFECT:
             previous image
         """
         if self.curr_idx == 0:
             return
+        elif self.curr_idx - num_images < 0:
+            num_images = self.curr_idx
 
-        self._update_image(self.curr_idx - 1)
+        self._update_image(self.curr_idx - num_images)
 
     def _increase_contrast_window(self, delta):
         """
