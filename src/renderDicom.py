@@ -649,102 +649,105 @@ class RenderDicomSeries:
             selects markers, moves slides, and prints informaiton
         """
         # return if not in list of c
-        if event.key in self.locations_markers.keys():
-            # set to selection
-            self.curr_selection = self.locations_markers[event.key]
+        try:
+            if event.key in self.locations_markers.keys():
+                # set to selection
+                self.curr_selection = self.locations_markers[event.key]
 
-            # assign curr_roi
-            if self.curr_selection in set([x.split()[0] for x in self.roi_lst]):
-                self.curr_roi = self.locations_markers[event.key]
-            else:
+                # assign curr_roi
+                if self.curr_selection in set([x.split()[0] for x in self.roi_lst]):
+                    self.curr_roi = self.locations_markers[event.key]
+                else:
+                    self.curr_roi = None
+
+                # set curr lasso to off
+                self.curr_lasso.active = False
+
+            # change lasso slector policy
+            elif DIGIT_PARSE.search(event.key) and self.curr_roi:
+                self.curr_lasso.active = True
+                self.curr_selection = self.curr_roi + " - " + event.key
+
+            # escape functions
+            elif event.key == "escape":
+                self.curr_selection = None
                 self.curr_roi = None
+                self.curr_lasso.active = False
 
-            # set curr lasso to off
-            self.curr_lasso.active = False
+            # removes current selection
+            elif event.key == "delete":
+                self._reset_location()
+            elif event.key == "backspace":
+                self._reset_location()
 
-        # change lasso slector policy
-        elif DIGIT_PARSE.search(event.key) and self.curr_roi:
-            self.curr_lasso.active = True
-            self.curr_selection = self.curr_roi + " - " + event.key
+            # scroll up and down
+            elif event.key == "up":
+                self._prev_image()
+            elif event.key == "down":
+                self._next_image()
 
-        # escape functions
-        elif event.key == "escape":
-            self.curr_selection = None
-            self.curr_roi = None
-            self.curr_lasso.active = False
+            # select next/previous calcium
+            elif event.key == "right":
+                self.ca_patches.advance_pos(True)
+            elif event.key == "left":
+                self.ca_patches.advance_pos(False)
 
-        # removes current selection
-        elif event.key == "delete":
-            self._reset_location()
-        elif event.key == "backspace":
-            self._reset_location()
+            # page up and down
+            elif event.key == "pageup":
+                self._prev_image(JUMP_SLICES)
+            elif event.key == "pagedown":
+                self._next_image(JUMP_SLICES)
 
-        # scroll up and down
-        elif event.key == "up":
-            self._prev_image()
-        elif event.key == "down":
-            self._next_image()
+            # resets contrast window
+            elif event.key == "shift":
+                self.dcm_im.set_clim(self.default_contrast_window)
+                self.ax.figure.canvas.draw()
 
-        # select next/previous calcium
-        elif event.key == "right":
-            self.ca_patches.advance_pos(True)
-        elif event.key == "left":
-            self.ca_patches.advance_pos(False)
+            # return results
+            elif event.key == "return":
+                self._close()
+            elif event.key == "enter":
+                self._close()
 
-        # page up and down
-        elif event.key == "pageup":
-            self._prev_image(JUMP_SLICES)
-        elif event.key == "pagedown":
-            self._next_image(JUMP_SLICES)
+            # change radius of current circle if a ROI landmark
+            elif event.key == "+":
+                self._change_z_bounds(1)
+            elif event.key == "-":
+                self._change_z_bounds(-1)
 
-        # resets contrast window
-        elif event.key == "shift":
-            self.dcm_im.set_clim(self.default_contrast_window)
-            self.ax.figure.canvas.draw()
+            # change z bounds around true slice
+            elif event.key == "}":
+                self._change_z_bounds(1)
+            elif event.key == "{":
+                self._change_z_bounds(-1)
 
-        # return results
-        elif event.key == "return":
-            self._close()
-        elif event.key == "enter":
-            self._close()
+            elif event.key == "]":
+                self._change_z_bounds(1)
+            elif event.key == "[":
+                self._change_z_bounds(-1)
 
-        # change radius of current circle if a ROI landmark
-        elif event.key == "+":
-            self._change_z_bounds(1)
-        elif event.key == "-":
-            self._change_z_bounds(-1)
+            # flip showing calcium flag
+            elif event.key == " ":
+                self.showing_calcium = not self.showing_calcium
 
-        # change z bounds around true slice
-        elif event.key == "}":
-            self._change_z_bounds(1)
-        elif event.key == "{":
-            self._change_z_bounds(-1)
+            elif event.key == "shift":
+                self.ca_patches.get_ca_mask(self.curr_idx)
 
-        elif event.key == "]":
-            self._change_z_bounds(1)
-        elif event.key == "[":
-            self._change_z_bounds(-1)
+            # else quit
+            else:
+                return
 
-        # flip showing calcium flag
-        elif event.key == " ":
-            self.showing_calcium = not self.showing_calcium
+            # print console msg
+            if event.key == "return" or event.key == "enter":
+                pass
+            else:
+                # update image
+                self._update_image(self.curr_idx)
 
-        elif event.key == "shift":
-            self.ca_patches.get_ca_mask(self.curr_idx)
-
-        # else quit
-        else:
+                # update print
+                self._print_console_msg()
+        except TypeError:
             return
-
-        # print console msg
-        if event.key == "return" or event.key == "enter":
-            pass
-        else:
-            # update image
-            self._update_image(self.curr_idx)
-
-            # update print
-            self._print_console_msg()
 
     def _lasso(self, verts):
         """
