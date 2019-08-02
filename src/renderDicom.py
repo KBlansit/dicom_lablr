@@ -259,12 +259,13 @@ class RenderDicomSeries:
 
                     # set lasso patch
                     patch = PathPatch(ver_path, facecolor=curr_color, alpha = 0.4)
-                    self.roi_data[self.curr_roi] = patch
+                    self.roi_data[tmp_roi] = patch
                     patch.set_visible(False)
                     self.ax.add_patch(patch)
 
                     # initialize ca patches
                     self.curr_selection = tmp_roi
+                    self.curr_roi = self.curr_selection.split()[0]
                     self._update_attenuation()
 
                 else:
@@ -272,6 +273,7 @@ class RenderDicomSeries:
 
                 # reset curr selection
                 self.curr_selection = None
+                self.curr_roi = None
 
         else:
             # initialize data dict
@@ -428,6 +430,7 @@ class RenderDicomSeries:
                     if self.roi_data[x] is not None:
                         self.roi_data[x].set_visible(True)
                 else:
+                    import pdb; pdb.set_trace()
                     if self.circle_data[x] is not None:
                         self.circle_data[x].set_visible(True)
 
@@ -945,6 +948,9 @@ class RenderDicomSeries:
         """
         # return if nothing is selected
         if self.curr_selection is None:
+            return
+        # return if we have a base roi
+        elif self.curr_selection in set([x.split()[0] for x in self.roi_lst]):
             return
         # return if slice location not valid
         elif self.data_dict["slice_location"][self.curr_selection] == None:
